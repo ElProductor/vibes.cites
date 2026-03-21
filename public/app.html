@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIBE | Descubre tu Ciudad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #050507;
+            --surface-1: rgba(20, 25, 35, 0.6);
+            --surface-2: rgba(35, 45, 60, 0.8);
+            --primary: #66FCF1;
+            --primary-glow: rgba(102, 252, 241, 0.6);
+            --secondary: #45A29E;
+            --accent-pink: #FF007F;
+            --accent-purple: #7000FF;
+            --text-main: #FFFFFF;
+            --text-muted: #C5C6C7;
+            --danger: #FF4C4C;
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        /* Fondo animado estilo Aurora */
+        body {
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(112, 0, 255, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(102, 252, 241, 0.15), transparent 25%),
+                radial-gradient(circle at 50% 80%, rgba(255, 0, 127, 0.1), transparent 30%);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* MODO FANTASMA (Anti-Snoop) */
+        body.anti-snoop main, body.anti-snoop .right-panel, body.anti-snoop aside {
+            filter: blur(15px) grayscale(50%);
+            pointer-events: none;
+            transition: filter 0.3s ease;
+        }
+
+        /* Sidebar Navegación */
+        aside {
+            width: 260px;
+            background: var(--surface-1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 2.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--glass-border);
+            z-index: 20;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(90deg, var(--primary), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+            position: relative;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            color: var(--text-main);
+            padding: 6px 10px;
+            cursor: pointer;
+            align-self: flex-start;
+            margin-bottom: 2rem;
+            font-weight: 700;
+            transition: transform 0.15s ease, background 0.2s ease;
+        }
+
+        .theme-toggle:hover { transform: scale(1.05); background: rgba(255,255,255,0.2); }
+        .dark-mode {
+            --bg-base: #050507;
+            --surface-1: rgba(10, 12, 20, 0.75);
+            --surface-2: rgba(15, 20, 30, 0.82);
+            --text-main: #E5E7EB;
+            --text-muted: #A0AEC0;
+            --primary: #66E2FF;
+            --secondary: #a962f7;
+            --accent-pink: #ff69b4;
+            --accent-purple: #ae78f8;
+            --glass-border: rgba(255, 255, 255, 0.12);
+        }
+
+        .nav-item {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            color: var(--bg-base);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 5px 20px var(--primary-glow);
+            border-color: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
+
+        .party-btn {
+            margin-top: 1rem;
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
+            border: 1px solid rgba(255,255,255,0.25);
+            padding: 0.6rem 1rem;
+            border-radius: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .party-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 18px rgba(255,0,127,0.4); }
+
+        .logout-btn {
+            margin-top: auto;
+            color: var(--danger);
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            transition: color 0.3s ease;
+        }
+
+        .party-mode .gps-blip, .party-mode .story-ring, .party-mode .feed-item {
+            animation: shimmer 1.5s infinite alternate ease-in-out;
+        }
+
+        @keyframes shimmer {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.6) contrast(1.2); }
+        }
+
+        .party-overlay {
+            pointer-events: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1000;
+            background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.15), transparent 30%),
+                        radial-gradient(circle at 80% 25%, rgba(102, 252, 241, 0.15), transparent 28%),
+                        radial-gradient(circle at 40% 80%, rgba(255, 0, 127, 0.14), transparent 40%);
+            animation: partyPulse 2.5s infinite ease-in-out;
+        }
+
+        @keyframes partyPulse {
+            0% { opacity: 0.62; transform: scale(1); }
+            50% { opacity: 0.34; transform: scale(0.99); }
+            100% { opacity: 0.62; transform: scale(1); }
+        }
+
+        /* Contenido Central */
+        main {
+            flex: 1;
+            padding: 3rem;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        header {
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        h2 {
+            font-size: 1.2rem;
+            color: var(--secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--glass-border), transparent);
+        }
+
+        .view-section {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .feed-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        /* --- VIBE STORIES (Estilo Instagram) --- */
+        .stories-container { display: flex; gap: 18px; overflow-x: auto; padding: 5px 0 20px 0; scrollbar-width: none; }
+        .story-ring { flex: 0 0 75px; width: 75px; height: 75px; border-radius: 50%; padding: 3px; background: linear-gradient(45deg, var(--accent-pink), var(--primary)); cursor: pointer; position: relative; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .story-ring:hover { transform: scale(1.1); }
+        .story-inner { width: 100%; height: 100%; border-radius: 50%; background: var(--surface-2); border: 3px solid var(--bg-base); display: flex; justify-content: center; align-items: center; font-size: 0.75rem; text-align: center; color: white; font-weight: bold; overflow: hidden; }
+        .live-badge { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); background: var(--danger); font-size: 0.6rem; padding: 3px 8px; border-radius: 12px; font-weight: 900; border: 2px solid var(--bg-base); box-shadow: 0 0 10px rgba(255,76,76,0.6); }
+
+        /* --- SWIPE DECK (Estilo Tinder/Bumble) --- */
+        .swipe-deck { position: relative; width: 100%; max-width: 380px; height: 550px; margin: 0 auto; perspective: 1000px; }
+        .swipe-card { position: absolute; width: 100%; height: 100%; background: var(--surface-1); border-radius: 24px; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: 0 15px 35px rgba(0,0,0,0.5); transition: transform 0.4s ease, opacity 0.4s ease; display: flex; flex-direction: column; }
+        /* Apilado visual 3D */
+        .swipe-card:nth-last-child(1) { z-index: 3; transform: translateY(0) scale(1); opacity: 1; }
+        .swipe-card:nth-last-child(2) { z-index: 2; transform: translateY(20px) scale(0.95); opacity: 0.8; }
+        .swipe-card:nth-last-child(3) { z-index: 1; transform: translateY(40px) scale(0.9); opacity: 0.5; }
+        /* Animaciones de Swipe */
+        .swipe-card.swiped-right { transform: translateX(150%) rotate(15deg) scale(0.8); opacity: 0; pointer-events: none; }
+        .swipe-card.swiped-left { transform: translateX(-150%) rotate(-15deg) scale(0.8); opacity: 0; pointer-events: none; }
+        .swipe-photo { flex: 1; background: var(--surface-2); position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding: 1.5rem; background-image: linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
+
+        /* --- VIBE MAP (Zonas de Calor y Tendencia) --- */
+        .radar-container {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            /* Simulador de Mapa Nocturno difuminado con zonas de calor */
+            background: radial-gradient(circle at 30% 30%, rgba(255, 0, 127, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 70% 60%, rgba(102, 252, 241, 0.15) 0%, transparent 40%),
+                        #0B0C10;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+        
+        .radar-sweep {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(from 0deg, transparent 70%, rgba(102, 252, 241, 0.1) 90%, rgba(102, 252, 241, 0.8) 100%);
+            border-radius: 50%;
+            animation: sweep 3s infinite linear;
+        }
+        @keyframes sweep { to { transform: rotate(360deg); } }
+        
+        .gps-blip {
+            position: absolute;
+            width: 16px; height: 16px;
+            background: linear-gradient(135deg, var(--accent-pink), var(--primary));
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent-pink);
+            cursor: pointer;
+            animation: pulse-blip 2s infinite;
+            border: 2px solid white;
+        }
+        @keyframes pulse-blip { 0% { box-shadow: 0 0 0 0 var(--primary-glow); } 70% { box-shadow: 0 0 0 15px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+        
+        .gps-blip:hover { transform: scale(1.5); }
+        .gps-blip::after {
+            content: attr(data-name) " • " attr(data-dist);
+            position: absolute; top: 20px; left: -20px;
+            background: rgba(255,255,255,0.95); padding: 6px 12px;
+            color: #000; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border-radius: 8px; font-size: 0.75rem; white-space: nowrap;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .gps-blip:hover::after { opacity: 1; }
+
+        /* --- INTEGRACIONES BENTO BOX --- */
+        .integration-card {
+            background: var(--surface-1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; justify-content: space-between;
+            transition: all 0.3s;
+        }
+        .integration-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        .integration-icon {
+            width: 50px; height: 50px; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; font-size: 1.5rem; margin-bottom: 1rem;
+        }
+        .spotify { background: linear-gradient(45deg, #1DB954, #1ed760); color: #fff; }
+        .instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; }
+        .tiktok { background: linear-gradient(45deg, #000000, #25F4EE, #FE2C55); color: #fff; }
+        .costar { background: linear-gradient(45deg, #000000, #333333); color: #fff; border: 1px solid #fff; }
+        
+        .connect-btn {
+            background: transparent; border: 1px solid var(--primary);
+            color: var(--primary); padding: 10px 20px; border-radius: 20px;
+            cursor: pointer; font-weight: 600; transition: all 0.3s;
+            margin-top: 1.5rem; align-self: flex-start;
+        }
+        .connect-btn:hover { background: var(--primary); color: var(--bg-base); }
+        .connect-btn.connected { background: var(--secondary); border-color: var(--secondary); color: white; }
+
+        .synergy-bar-bg { width: 100%; height: 6px; background: var(--surface-2); border-radius: 3px; margin: 10px 0; overflow: hidden;}
+        .synergy-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent-purple)); border-radius: 3px; }
+        .match-actions { display: flex; justify-content: space-around; padding: 1.5rem; background: var(--surface-1); border-top: 1px solid var(--glass-border); }
+        .action-btn { background: var(--surface-2); border: none; padding: 12px; border-radius: 50%; cursor: pointer; color: white; width: 50px; height: 50px; transition: 0.3s; font-size: 1.2rem;}
+        .action-btn:hover { transform: scale(1.1); }
+        .action-btn.like { color: var(--primary); border: 1px solid var(--primary); }
+        .action-btn.pass { color: var(--danger); border: 1px solid var(--danger); }
+
+        /* --- VIBE PREMIUM BANNER --- */
+        .premium-banner {
+            background: linear-gradient(135deg, #FF007F, #7000FF);
+            border-radius: 24px; padding: 2.5rem;
+            text-align: center; margin-top: 2rem;
+            box-shadow: 0 15px 30px rgba(112,0,255,0.3);
+        }
+        .premium-btn { background: #fff; color: #000; padding: 12px 25px; border-radius: 30px; font-weight: bold; border: none; cursor: pointer; margin-top: 15px; transition: 0.3s; }
+        .premium-btn:hover { transform: scale(1.05); }
+
+        /* --- PANEL DERECHO: PERFIL Y FEED EN VIVO --- */
+        .right-panel {
+            width: 340px;
+            background: var(--surface-1);
+            backdrop-filter: blur(20px);
+            padding: 3rem 2rem;
+            border-left: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+        }
+
+        .avatar {
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+            display: flex; justify-content: center; align-items: center;
+            font-size: 3.5rem; font-weight: 900; color: var(--bg-base);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 30px var(--primary-glow);
+            align-self: center;
+        }
+
+        .profile-name { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; }
+        .profile-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 2.5rem; text-align: center; }
+
+        /* Live Feed Ticker */
+        .live-feed-container { margin-top: 2rem; flex: 1; display: flex; flex-direction: column; }
+        .feed-item { background: rgba(0,0,0,0.4); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border-left: 3px solid var(--primary); animation: slideIn 0.5s ease;}
+        .feed-item.hot { border-left-color: var(--danger); }
+        .feed-item.match { border-left-color: var(--accent-pink); }
+        .feed-time { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px; }
+        .feed-text { font-size: 0.9rem; line-height: 1.4; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Insignia Cuántica */
+        .quantum-badge { position: absolute; top: 2rem; right: 2rem; background: rgba(0, 255, 128, 0.1); border: 1px solid #00ff80; color: #00ff80; padding: 6px 16px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0,255,128,0.2); z-index: 50; }
+        .quantum-badge span { width: 8px; height: 8px; background: #00ff80; border-radius: 50%; box-shadow: 0 0 10px #00ff80; animation: blink 2s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        /* --- RESPONSIVE & MODO MÓVIL IMPRESIONANTE --- */
+        @media (max-width: 1200px) {
+            body { flex-direction: column; overflow: auto; }
+            aside, .right-panel { width: 100%; max-width: 100%; border: none; background: rgba(5,5,7,0.75); position: relative; backdrop-filter: blur(16px); }
+            main { padding: 1.5rem; }
+            .right-panel { margin-top: 1rem; }
+            .swipe-deck { max-width: 100%; height: 460px; }
+            .dashboard-grid, .feed-grid { grid-template-columns: 1fr; }
+            .quantum-badge { position: static; margin: 0 auto 1rem; }
+        }
+
+        @media (max-width: 760px) {
+            .logo { font-size: 2rem; }
+            h1 { font-size: 2rem; }
+            .nav-item { font-size: 0.95rem; }
+            .right-panel, aside { display: none; }
+            main { padding: 1rem; }
+            .swipe-deck { height: 400px; }
+        }
+
+        /* Ping animado para un look vivo */
+        @keyframes superPulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.85; } 100% { transform: scale(1); opacity: 1; } }
+        .logo, .nav-item, .integration-card, .premium-banner, .action-btn { animation: superPulse 6s infinite alternate ease-in-out; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="logo">VIBE.</div>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">🌗 Modo Neo</button>
+        <div class="nav-item active" onclick="switchView(this, 'radar')">🗺️ Vibe Map</div>
+        <div class="nav-item" onclick="switchView(this, 'matches')">💖 Conexiones</div>
+        <div class="nav-item" onclick="switchView(this, 'integrations')">✨ Redes y Gustos</div>
+        <div class="nav-item" onclick="switchView(this, 'events')">🎟️ Mis Tickets</div>
+        <div class="nav-item" style="color: var(--accent-pink);" onclick="switchView(this, 'premium')">💎 Vibe+ Premium</div>
+        <div class="party-btn" onclick="togglePartyMode()">🎉 Party Mode</div>
+        <div style="flex-grow: 1;"></div>
+        <div class="logout-btn" onclick="logout()">⏻ Desconectar</div>
+    </aside>
+
+    <main>
+        <div class="quantum-badge">
+            <span></span> Quantum Shield E2EE Activo
+        </div>
+
+        <header>
+            <h1 id="welcomeText">Cargando tu vibra...</h1>
+            <p style="color: var(--text-muted); font-size: 1.1rem;">La noche es joven. Descubre quién y qué está en tendencia.</p>
+            <div class="vibe-metrics" id="vibeMetrics" style="margin-top:1rem; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:0.9rem; color:var(--text-muted);">Match rate: <strong id="matchRate">--%</strong></span>
+                <span style="font-size:0.9rem; color:var(--text-muted);">Hotspots: <strong id="hotspotCount">--</strong></span>
+                <span style="font-size:0.9rem; color:var(--text-muted);">Tiempo de carga: <strong id="loadTime">--ms</strong></span>
+            </div>
+        </header>
+
+        <!-- VISTA RADAR Y FIESTAS -->
+        <section id="view-radar" class="view-section active">
+            <div class="stories-container" id="storiesContainer">
+                <!-- Historias inyectadas por JS -->
+            </div>
+            <h2>Mapa en Vivo (Hotspots)</h2>
+            <div class="radar-container" id="radarMap">
+                <!-- Blips generados por JS -->
+            </div>
+        </section>
+
+        <!-- VISTA MATCHES -->
+        <section id="view-matches" class="view-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2 style="margin:0;">Compatibilidad Dinámica</h2>
+                <div onclick="showNotification('🔥 Algoritmo acelerado. Tu perfil ahora es 10x más visible.')" style="background: rgba(255,0,127,0.2); color: var(--accent-pink); padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; border: 1px solid var(--accent-pink); cursor: pointer; box-shadow: 0 0 15px rgba(255,0,127,0.3);">🚀 Boost</div>
+            </div>
+            
+            <div class="swipe-deck" id="swipeDeck">
+                <p style="text-align:center; margin-top: 50%; color: var(--text-muted);">Buscando conexiones en el éter...</p>
+            </div>
+        </section>
+
+        <!-- VISTA INTEGRACIONES -->
+        <section id="view-integrations" class="view-section">
+            <h2>Exprésate Libremente</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Conecta tus redes para que el algoritmo encuentre a tu grupo ideal.</p>
+            
+            <div class="feed-grid">
+                <div class="integration-card">
+                    <div class="integration-icon spotify">🎵</div>
+                    <h3>Spotify API</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Match por frecuencias sonoras y top artistas.</p>
+                    <button class="connect-btn" id="btn-spotify" onclick="toggleIntegration('spotify')">Sincronizar</button>
+                </div>
+
+                <div class="integration-card">
+                    <div class="integration-icon instagram">📸</div>
+                    <h3>Instagram</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Sincroniza tus mejores fotos y descubre mutuals.</p>
+                    <button class="connect-btn" id="btn-instagram" onclick="toggleIntegration('instagram')">Sincronizar</button>
+                </div>
+
+                <div class="integration-card">
+                    <div class="integration-icon tiktok">📱</div>
+                    <h3>TikTok</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">El algoritmo analizará tu FYP para matches de humor.</p>
+                    <button class="connect-btn" id="btn-tiktok" onclick="toggleIntegration('tiktok')">Sincronizar</button>
+                </div>
+                
+                <div class="integration-card">
+                    <div class="integration-icon costar">✨</div>
+                    <h3>Co–Star (Astrología)</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted);">Match perfecto de carta astral y signos compatibles.</p>
+                    <button class="connect-btn" id="btn-costar" onclick="toggleIntegration('costar')">Sincronizar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA EVENTOS -->
+        <section id="view-events" class="view-section">
+            <h2>Tus Entradas y Guestlists</h2>
+            <div class="feed-grid" id="myEventsContainer">
+                <p style="color: var(--text-muted);">Aún no tienes tickets comprados.</p>
+            </div>
+        </section>
+
+        <!-- VISTA PREMIUM -->
+        <section id="view-premium" class="view-section">
+            <h2>Sube de Nivel</h2>
+            <div class="premium-banner">
+                <h1 style="text-shadow: none; font-size: 2.5rem;">Desbloquea VIBE+</h1>
+                <p style="font-size: 1.1rem; opacity: 0.9; margin-top: 10px;">Mira a quién le gustas antes de hacer swipe. Acceso prioritario a Fiestas Secretas. Navegación en modo incógnito.</p>
+                <button class="premium-btn" onclick="buyPremium()">💳 Obtener Vibe+ por $9.99/mes</button>
+            </div>
+        </section>
+    </main>
+
+    <div class="right-panel">
+        <div class="avatar" id="userAvatar"></div>
+        <div class="profile-name" id="userName">...</div>
+        <div class="profile-sub" id="userZodiac">...</div>
+
+        <div style="background: rgba(0,0,0,0.5); padding: 1.5rem; border-radius: 16px; text-align: center; border: 1px solid var(--glass-border);">
+            <h4 style="color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">Aura Power (Vibe Score)</h4>
+            <div style="font-size: 3rem; font-weight: 900; color: var(--primary); text-shadow: 0 0 20px var(--primary-glow);" id="vibeScore">--</div>
+        </div>
+
+        <div class="live-feed-container">
+            <h4 style="margin-bottom: 1rem; color: var(--secondary);">🔴 CIUDAD EN VIVO</h4>
+            <div id="liveFeedWrapper">
+                <!-- Llenado por JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CORE: ARQUITECTURA SPA NODE.JS ---
+        
+        function showNotification(msg, color = 'var(--primary)') {
+            const toast = document.createElement('div');
+            toast.innerHTML = msg;
+            toast.style.cssText = `position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:${color}; color:#000; padding:12px 25px; border-radius:30px; font-weight:bold; z-index:9999; box-shadow:0 15px 30px rgba(0,0,0,0.6); animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+        }
+        const style = document.createElement('style'); style.innerHTML = `@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`; document.head.appendChild(style);
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const active = document.body.classList.contains('dark-mode');
+            document.getElementById('themeToggle').innerText = active ? '☀️ Modo Lunar' : '🌗 Modo Neo';
+            localStorage.setItem('vibe_theme', active ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const theme = localStorage.getItem('vibe_theme') || 'dark';
+            if (theme === 'dark') document.body.classList.add('dark-mode');
+            document.getElementById('themeToggle').innerText = theme === 'dark' ? '☀️ Modo Lunar' : '🌗 Modo Neo';
+        }
+
+        function initApp() {
+            const token = localStorage.getItem('vibe_token');
+            const userRaw = localStorage.getItem('vibe_user');
+
+            if (!token || !userRaw) {
+                window.location.href = '/'; 
+                return;
+            }
+
+            refreshVibeMetrics();
+            setInterval(refreshVibeMetrics, 45000); // refresca cada 45 seg
+
+            try {
+                const user = JSON.parse(userRaw);
+                renderProfile(user);
+                fetchFullProfile(user.id, token);
+                
+                loadStories();
+                loadRadar();
+                loadMatches();
+                loadLiveFeed();
+            } catch (e) {
+                console.error("Data corrupta en sesión:", e);
+                logout();
+            }
+        }
+
+        function renderProfile(user) {
+            document.getElementById('welcomeText').innerText = `¡Hola de nuevo, ${user.username}!`;
+            document.getElementById('userName').innerText = user.username;
+            document.getElementById('userAvatar').innerText = user.username.charAt(0).toUpperCase();
+            document.getElementById('vibeScore').innerText = user.vibe_score || '100';
+
+            if (user.vibe_color) {
+                document.getElementById('userAvatar').style.boxShadow = `0 0 30px ${user.vibe_color}80`; 
+            }
+        }
+
+        async function loadStories() {
+            try {
+                const res = await fetch('/api/stories', { headers: { 'Authorization': `Bearer ${localStorage.getItem('vibe_token')}` } });
+                const data = await res.json();
+                const container = document.getElementById('storiesContainer');
+                if (data.success) {
+                    container.innerHTML = '';
+                    data.stories.forEach(s => {
+                        container.innerHTML += `
+                            <div class="story-ring" onclick="showNotification('📡 Cargando transmisión en vivo de ${s.title}...')">
+                                <div class="story-inner">${s.title.substring(0,8)}</div>
+                                ${s.isLive ? '<div class="live-badge">LIVE</div>' : ''}
+                            </div>
+                        `;
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function switchView(el, viewId) {
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
+            const target = document.getElementById(`view-${viewId}`);
+            if (target) {
+                target.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // --- LLAMADAS AL BACKEND (VIBE API) ---
+        
+        async function loadRadar() {
+            try {
+                const res = await fetch('/api/parties/radar', { headers: { 'Authorization': `Bearer ${localStorage.getItem('vibe_token')}` } });
+                const data = await res.json();
+                const radar = document.getElementById('radarMap');
+                
+                if (data.success) {
+                    data.parties.forEach((p, index) => {
+                        const blip = document.createElement('div');
+                        blip.className = 'gps-blip';
+                        // Matemáticas simples para distribuir en el radar visualmente (Mock geo)
+                        const angle = (index * 120) * (Math.PI / 180);
+                        const radius = 25 + (Math.random() * 20); // 25% to 45% of radius
+                        blip.style.top = `calc(50% + ${Math.sin(angle) * radius}%)`; 
+                        blip.style.left = `calc(50% + ${Math.cos(angle) * radius}%)`;
+                        blip.setAttribute('data-name', p.name);
+                        blip.setAttribute('data-dist', p.distance);
+                        radar.appendChild(blip);
+                    });
+                }
+            } catch (e) { console.error("Error Radar:", e); }
+        }
+
+        async function loadMatches() {
+            try {
+                const res = await fetch('/api/matches', { headers: { 'Authorization': `Bearer ${localStorage.getItem('vibe_token')}` } });
+                const data = await res.json();
+                const deck = document.getElementById('swipeDeck');
+                deck.innerHTML = '';
+
+                if (data.success) {
+                    // Invertimos para que el primero de la lista quede hasta arriba del deck visualmente
+                    data.matches.reverse().forEach(m => {
+                        deck.innerHTML += `
+                            <div class="swipe-card" id="card-${m.id}">
+                                <div class="swipe-photo">
+                                    <div style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.7); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--primary); color: var(--primary); font-weight: bold; font-size: 0.85rem;">✨ ${m.synergy}% Sinergia</div>
+                                    <h3 style="font-size: 2.2rem; text-shadow: 0 2px 10px rgba(0,0,0,0.8);">${m.name}, ${m.age}</h3>
+                                    <p style="font-size: 0.95rem; margin: 10px 0; opacity: 0.9;">📡 <b>Afinidad:</b> ${m.commonInterest}</p>
+                                    <div class="synergy-bar-bg" style="background: rgba(255,255,255,0.2);"><div class="synergy-bar-fill" style="width: ${m.synergy}%;"></div></div>
+                                </div>
+                                <div class="match-actions">
+                                    <button class="action-btn pass" onclick="swipeCard('${m.id}', 'left')">✕</button>
+                                    <button class="action-btn like" onclick="swipeCard('${m.id}', 'right')">❤</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch (e) { console.error("Error Matches:", e); }
+        }
+
+        // Motor de animaciones de Swipe
+        function swipeCard(id, direction) {
+            const card = document.getElementById(`card-${id}`);
+            if (!card) return;
+            card.classList.add(direction === 'right' ? 'swiped-right' : 'swiped-left');
+            setTimeout(() => card.remove(), 400); // Quita del DOM tras la animación
+            if (direction === 'right') {
+                showNotification("💖 ¡Like Enviado! Te avisaremos si hay Match.", "var(--accent-pink)");
+            }
+        }
+
+        async function loadLiveFeed() {
+            try {
+                const res = await fetch('/api/live-feed', { headers: { 'Authorization': `Bearer ${localStorage.getItem('vibe_token')}` } });
+                const data = await res.json();
+                const wrapper = document.getElementById('liveFeedWrapper');
+                wrapper.innerHTML = '';
+
+                if (data.success) {
+                    data.feed.forEach(f => {
+                        wrapper.innerHTML += `
+                            <div class="feed-item ${f.type}">
+                                <div class="feed-time">${f.time}</div>
+                                <div class="feed-text">${f.text}</div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch (e) { console.error("Error Feed:", e); }
+        }
+        
+        async function buyPremium() {
+            const btn = document.querySelector('.premium-btn');
+            btn.innerText = "Validando Tarjeta...";
+            try {
+                const res = await fetch('/api/checkout/premium', { 
+                    method: 'POST', 
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('vibe_token')}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: JSON.parse(localStorage.getItem('vibe_user')).id, plan: 'VIBE_PLUS' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(data.message);
+                    btn.innerText = "¡Suscripción Vibe+ Activa!";
+                    btn.style.background = "var(--primary)"; btn.style.color = "var(--bg-base)";
+                }
+            } catch(e) { showNotification("Error de conexión con el banco.", "var(--danger)"); }
+        }
+
+        function toggleIntegration(app) {
+            const btn = document.getElementById(`btn-${app}`);
+            if (btn.classList.contains('connected')) {
+                btn.classList.remove('connected');
+                btn.innerText = "Sincronizar";
+            } else {
+                btn.classList.add('connected');
+                btn.innerText = "¡Activo!";
+            }
+        }
+
+        async function fetchFullProfile(userId, token) {
+            try {
+                const res = await fetch(`/users/${userId}/profile`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await res.json();
+                if (data.success && data.profile) {
+                    document.getElementById('userZodiac').innerText = `Signo: ${data.profile.basic.zodiac} ♈`;
+                } else if (res.status === 401 || res.status === 403) {
+                    logout();
+                }
+            } catch (err) { console.error("Error Servidor VIBE:", err); }
+        }
+
+        function togglePartyMode() {
+            const active = document.body.classList.toggle('party-mode');
+            if (active) {
+                const overlay = document.createElement('div');
+                overlay.className = 'party-overlay';
+                overlay.id = 'partyOverlay';
+                document.body.appendChild(overlay);
+                showNotification('🎊 Party mode activado: +15% energia social', 'linear-gradient(90deg, #ff00cc, #00d4ff)');
+            } else {
+                const overlay = document.getElementById('partyOverlay');
+                if (overlay) overlay.remove();
+                showNotification('🧊 Party mode desactivado', 'var(--secondary)');
+            }
+        }
+
+        function refreshVibeMetrics() {
+            const start = performance.now();
+            fetch('/api/metrics', { headers: { 'Authorization': `Bearer ${localStorage.getItem('vibe_token')}` } })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('matchRate').innerText = data.matchRate ? `${data.matchRate}%` : '—';
+                    document.getElementById('hotspotCount').innerText = data.hotspotCount ?? '--';
+                    document.getElementById('loadTime').innerText = `${Math.round(performance.now() - start)}ms`;
+                }).catch(() => {
+                    document.getElementById('matchRate').innerText = 'err';
+                    document.getElementById('hotspotCount').innerText = 'err';
+                    document.getElementById('loadTime').innerText = '--';
+                });
+        }
+
+        function logout() {
+            localStorage.removeItem('vibe_token');
+            localStorage.removeItem('vibe_user');
+            window.location.replace('/');
+        }
+
+        // --- MODO FANTASMA (Anti-Shoulder Surfing) ---
+        // Si el usuario minimiza o cambia de pestaña, la app se vuelve ilegible para mirones
+        window.addEventListener('blur', () => document.body.classList.add('anti-snoop'));
+        window.addEventListener('focus', () => document.body.classList.remove('anti-snoop'));
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            initApp();
+        });
+    </script>
+</body>
+</html>

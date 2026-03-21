@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIBE - Citas Únicas</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <style>
+        .auth-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .tab-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 8px 16px; cursor: pointer; border-radius: 20px; transition: all 0.3s; }
+        .tab-btn.active { background: #fff; color: #000; border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        .bio-btn { width: 100%; margin-top: 10px; background: linear-gradient(45deg, #03dac6, #6200ee); border: none; padding: 10px; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+        
+        /* Componentes Comerciales de Contraseña */
+        .password-wrapper { position: relative; width: 100%; margin-bottom: 10px; }
+        .password-wrapper input { width: 100%; box-sizing: border-box; }
+        .toggle-password { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; user-select: none; font-size: 1.1rem; opacity: 0.7; }
+        .toggle-password:hover { opacity: 1; text-shadow: 0 0 5px #fff; }
+        .strength-meter { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; width: 100%; overflow: hidden; margin: -5px 0 15px 0; }
+        .strength-bar { height: 100%; width: 0%; background: #ff4c4c; transition: width 0.4s, background 0.4s; }
+        .forgot-link { display: block; text-align: right; font-size: 0.8rem; color: #03dac6; cursor: pointer; margin-top: -5px; margin-bottom: 15px; }
+        .forgot-link:hover { text-decoration: underline; }
+    </style>
+    <canvas id="vibe-canvas"></canvas>
+    <div id="app">
+        <!-- Vista de Autenticación -->
+        <div id="auth-view">
+            <header style="justify-content: center;">
+                <span>✨ VIBE ✨</span>
+            </header>
+            <div class="auth-container">
+                <div id="vibe-aura-indicator" title="Tu Aura Actual" style="position:absolute; top:20px; right:20px; width:12px; height:12px; border-radius:50%; background:var(--primary); box-shadow:0 0 10px var(--primary); transition: all 0.5s ease;"></div>
+                <!-- Formulario Login -->
+                <form id="login-form">
+                    <h2>Iniciar Sesión</h2>
+                    
+                    <div class="social-login-container">
+                        <button type="button" class="social-btn google-btn" onclick="socialLogin('google')">G</button>
+                        <button type="button" class="social-btn facebook-btn" onclick="socialLogin('facebook')">F</button>
+                    </div>
+                    
+                    <div class="divider">Selecciona tu método</div>
+
+                    <div class="auth-tabs">
+                        <button type="button" class="tab-btn active" onclick="setLoginMethod('phone')">📱 Teléfono</button>
+                        <button type="button" class="tab-btn" onclick="setLoginMethod('email')">📧 Correo</button>
+                    </div>
+
+                    <div id="login-method-phone">
+                        <input type="tel" id="login-phone" placeholder="Número de teléfono (ej. +52...)">
+                    </div>
+                    <div id="login-method-email" class="hidden">
+                        <input type="email" id="login-email" placeholder="Correo electrónico">
+                    </div>
+                    
+                    <!-- Contraseña Universal para Login -->
+                    <div class="password-wrapper">
+                        <input type="password" id="login-pass" placeholder="Contraseña">
+                        <span class="toggle-password" onclick="togglePassword('login-pass', this)">👁️</span>
+                    </div>
+                    <span class="forgot-link" onclick="showToast('Se enviaron instrucciones a tu correo para restablecer tu cuenta.')">¿Olvidaste tu contraseña?</span>
+                    
+                    <button type="submit" class="action-btn" id="login-btn">Iniciar Sesión</button>
+                    <button type="button" class="bio-btn" onclick="biometricLogin()">👁️ Ingresar con FaceID</button>
+                    <div class="toggle-link" onclick="toggleAuth('register')">¿No tienes cuenta? Regístrate</div>
+                </form>
+
+                <!-- Formulario Registro -->
+                <form id="register-form" class="hidden">
+                    <h2>Crear Cuenta</h2>
+
+                    <div class="social-login-container">
+                        <button type="button" class="social-btn google-btn" onclick="socialLogin('google')">Google</button>
+                        <button type="button" class="social-btn facebook-btn" onclick="socialLogin('facebook')">Facebook</button>
+                    </div>
+
+                    <div class="divider">Elige cómo unirte</div>
+
+                    <div class="auth-tabs">
+                        <button type="button" class="tab-btn active" onclick="setRegisterMethod('phone')">📱 Teléfono</button>
+                        <button type="button" class="tab-btn" onclick="setRegisterMethod('email')">📧 Correo</button>
+                    </div>
+
+                    <input type="text" id="reg-username" placeholder="Nombre de usuario" required>
+                    
+                    <div id="reg-method-phone">
+                        <input type="tel" id="reg-phone" placeholder="Número de teléfono">
+                        <div id="reg-otp-group" class="hidden">
+                            <input type="text" id="reg-otp" placeholder="Código de verificación" maxlength="6">
+                        </div>
+                    </div>
+                    <div id="reg-method-email" class="hidden">
+                        <input type="email" id="reg-email" placeholder="Correo electrónico">
+                    </div>
+
+                    <!-- Contraseña Universal para Registro -->
+                    <div class="password-wrapper">
+                        <input type="password" id="reg-pass" placeholder="Contraseña segura" onkeyup="checkPasswordStrength()">
+                        <span class="toggle-password" onclick="togglePassword('reg-pass', this)">👁️</span>
+                    </div>
+                    <div class="strength-meter"><div id="strength-bar" class="strength-bar"></div></div>
+                    <div class="password-wrapper">
+                        <input type="password" id="reg-pass-confirm" placeholder="Confirma tu contraseña">
+                    </div>
+
+                    <label style="font-size: 0.8rem; color: #aaa;">Fecha de Nacimiento</label>
+                    <input type="date" id="reg-dob" required>
+                    <select id="reg-gender">
+                        <option value="MALE">Hombre</option>
+                        <option value="FEMALE">Mujer</option>
+                        <option value="NON_BINARY">No Binario</option>
+                        <option value="OTHER">Otro</option>
+                    </select>
+                    <button type="submit" class="action-btn" id="reg-btn">Enviar Código</button>
+                    <div class="toggle-link" onclick="toggleAuth('login')">¿Ya tienes cuenta? Inicia sesión</div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Mensaje</div>
+    <script src="app.js"></script>
+</body>
+</html>
