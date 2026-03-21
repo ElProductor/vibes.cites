@@ -7,62 +7,70 @@ const authService = new AuthService();
 const PORT = process.env.PORT || 3000;
 
 // --- CONFIGURACIÓN GOOGLE ---
-passport.use(new GoogleStrategy({
-    clientID: (process.env.GOOGLE_CLIENT_ID || '').trim(),
-    clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
-    callbackURL: `http://localhost:${PORT}/auth/google/callback`,
-    passReqToCallback: true // Importante para recibir el vibe_color del state
-  },
-  async (req, accessToken, refreshToken, profile, done) => {
-    try {
-      // Recuperamos el vibe_color del parámetro 'state' que enviamos desde el frontend
-      let vibeColor = 'hsl(270, 100%, 60%)'; // Color por defecto
-      if (req.query.state && typeof req.query.state === 'string') {
-          try {
-              const decoded = Buffer.from(req.query.state, 'base64').toString();
-              const stateObj = JSON.parse(decoded);
-              if (stateObj.vibeColor) vibeColor = stateObj.vibeColor;
-          } catch (e) { console.error("Error parsing state:", e); }
+if (process.env.GOOGLE_CLIENT_ID) {
+    passport.use(new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID.trim(),
+        clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
+        callbackURL: `https://${process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`}/auth/google/callback`,
+        passReqToCallback: true // Importante para recibir el vibe_color del state
+      },
+      async (req, accessToken, refreshToken, profile, done) => {
+        try {
+          // Recuperamos el vibe_color del parámetro 'state' que enviamos desde el frontend
+          let vibeColor = 'hsl(270, 100%, 60%)'; // Color por defecto
+          if (req.query.state && typeof req.query.state === 'string') {
+              try {
+                  const decoded = Buffer.from(req.query.state, 'base64').toString();
+                  const stateObj = JSON.parse(decoded);
+                  if (stateObj.vibeColor) vibeColor = stateObj.vibeColor;
+              } catch (e) { console.error("Error parsing state:", e); }
+          }
+    
+          const result = await authService.findOrCreateSocialUser(profile, 'google', vibeColor);
+          
+          if (!result.success) {
+              console.error("❌ Error en Google Login:", result.message);
+              return done(null, false); // Esto activará el failureRedirect
+          }
+          return done(null, result); // Éxito
+        } catch (err) {
+          return done(err, undefined);
+        }
       }
-
-      const result = await authService.findOrCreateSocialUser(profile, 'google', vibeColor);
-      
-      if (!result.success) {
-          console.error("❌ Error en Google Login:", result.message);
-          return done(null, false); // Esto activará el failureRedirect
-      }
-      return done(null, result); // Éxito
-    } catch (err) {
-      return done(err, undefined);
-    }
-  }
-));
+    ));
+} else {
+    console.warn("⚠️ GOOGLE_CLIENT_ID no configurado. El login social de Google está desactivado.");
+}
 
 // --- CONFIGURACIÓN FACEBOOK ---
-passport.use(new FacebookStrategy({
-    clientID: process.env.FACEBOOK_APP_ID || 'TU_FACEBOOK_APP_ID_AQUI',
-    clientSecret: process.env.FACEBOOK_APP_SECRET || 'TU_FACEBOOK_APP_SECRET_AQUI',
-    callbackURL: `http://localhost:${PORT}/auth/facebook/callback`,
-    profileFields: ['id', 'emails', 'name', 'photos'], // Campos requeridos
-    passReqToCallback: true
-  },
-  async (req, accessToken, refreshToken, profile, done) => {
-    try {
-      const state = req.query.state ? JSON.parse(Buffer.from(req.query.state as string, 'base64').toString()) : {};
-      const vibeColor = state.vibeColor;
-
-      const result = await authService.findOrCreateSocialUser(profile, 'facebook', vibeColor);
-      
-      if (!result.success) {
-          console.error("❌ Error en Facebook Login:", result.message);
-          return done(null, false);
+if (process.env.FACEBOOK_APP_ID) {
+    passport.use(new FacebookStrategy({
+        clientID: process.env.FACEBOOK_APP_ID,
+        clientSecret: process.env.FACEBOOK_APP_SECRET || '',
+        callbackURL: `https://${process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`}/auth/facebook/callback`,
+        profileFields: ['id', 'emails', 'name', 'photos'], // Campos requeridos
+        passReqToCallback: true
+      },
+      async (req, accessToken, refreshToken, profile, done) => {
+        try {
+          const state = req.query.state ? JSON.parse(Buffer.from(req.query.state as string, 'base64').toString()) : {};
+          const vibeColor = state.vibeColor;
+    
+          const result = await authService.findOrCreateSocialUser(profile, 'facebook', vibeColor);
+          
+          if (!result.success) {
+              console.error("❌ Error en Facebook Login:", result.message);
+              return done(null, false);
+          }
+          return done(null, result);
+        } catch (err) {
+          return done(err, undefined);
+        }
       }
-      return done(null, result);
-    } catch (err) {
-      return done(err, undefined);
-    }
-  }
-));
+    ));
+} else {
+    console.warn("⚠️ FACEBOOK_APP_ID no configurado. El login social de Facebook está desactivado.");
+}
 
 // Serialización (no necesaria si usamos JWT stateless, pero requerida por Passport)
 passport.serializeUser((user, done) => done(null, user));
