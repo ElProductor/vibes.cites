@@ -60,22 +60,39 @@ export class AuthService {
     return { success: true, message: 'Código SMS enviado a tu teléfono' };
   }
 
-  // Motor de envío SMS crudo desde 0 (usando Fetch Nativo)
+  // Motor de envío SMS profesional usando Twilio (Fetch Nativo)
   private async sendSmsApi(phone: string, message: string) {
     try {
-      // Llama a una API externa estándar (ej. Textbelt, Infobip, AWS, etc)
-      const response = await fetch('https://textbelt.com/text', {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+
+      // Si no hay credenciales, permitimos que el código se imprima en consola (Modo Pruebas)
+      if (!sid || !token) {
+        console.warn('⚠️ Twilio no configurado en Railway. Modo Pruebas Activado (Lee el código en consola).');
+        return true; 
+      }
+
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+      const params = new URLSearchParams();
+      params.append('To', phone);
+      params.append('From', fromPhone || '');
+      params.append('Body', message);
+
+      const auth = Buffer.from(`${sid}:${token}`).toString('base64');
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: phone,
-          message: message,
-          key: process.env.SMS_API_KEY || 'textbelt', // Clave dummy o tu key real
-        }),
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params
       });
+      
       const data = await response.json();
-      if (!data.success) console.warn('⚠️ Alerta Proveedor SMS:', data.error);
-      return data.success;
+      if (data.error_message) console.warn('⚠️ Alerta Twilio:', data.error_message);
+      return !data.error_message;
     } catch (error) {
       console.error('❌ Error crítico enviando SMS vía API:', error);
       return false;
