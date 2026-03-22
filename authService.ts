@@ -54,10 +54,13 @@ export class AuthService {
     
     // Script enviador de SMS automático a través de API
     const message = `Tu código VIBE es: ${code}. Válido por 5 minutos.`;
-    await this.sendSmsApi(phone, message);
+    const smsSent = await this.sendSmsApi(phone, message);
     
-    console.log(`📱 API SMS EJECUTADA para ${phone}: Tu código es [ ${code} ]`);
-    return { success: true, message: 'Código SMS enviado a tu teléfono' };
+    if (!smsSent) {
+      console.log(`⚠️ MODO PRUEBA / FALLO API: El SMS no se envió por la red telefónica.`);
+    }
+    console.log(`📱 [DEV/PRUEBAS] Código OTP para ${phone}: [ ${code} ]`);
+    return { success: true, message: 'Código generado (revisa tu SMS o la consola en fase de pruebas)' };
   }
 
   // Motor de envío SMS profesional usando Twilio (Fetch Nativo)
@@ -74,8 +77,8 @@ export class AuthService {
 
       // Si no hay credenciales, permitimos que el código se imprima en consola (Modo Pruebas)
       if (!sid || !token) {
-        console.warn('⚠️ Twilio no configurado en Railway. Modo Pruebas Activado (Lee el código en consola).');
-        return true; 
+        console.warn('⚠️ Twilio no configurado. Modo Pruebas Activado.');
+        return false; // Retornamos false para que el bloque anterior sepa que simuló el SMS
       }
 
       const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
