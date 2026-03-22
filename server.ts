@@ -12,15 +12,17 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 
 // Servir archivos estáticos (Frontend)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(process.cwd(), 'public')));
 app.use(passport.initialize()); // Inicializar Passport
 
 const controller = new VibeController();
 
 // --- RUTAS ---
 
-// La ruta raíz '/' ahora será manejada automáticamente por express.static buscando 'index.html'
-// Así que podemos eliminar el app.get('/') manual o dejarlo comentado si prefieres.
+// Ruta de inicio explícita para asegurar que cargue en la nube
+app.get('/', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+});
 
 // Autenticación
 app.post('/auth/register', (req, res) => controller.register(req, res));
