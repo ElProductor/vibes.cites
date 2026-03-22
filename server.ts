@@ -139,9 +139,13 @@ app.post('/notifications/read', authMiddleware, (req, res) => controller.markNot
 app.get('/leaderboard', (req, res) => controller.getLeaderboard(req, res));
 
 const server = app.listen(port, () => {
+  let domain = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${port}`;
+  domain = domain.replace(/^https?:\/\//, '');
+  const protocol = domain.includes('localhost') ? 'http' : 'https';
+
   console.log(`🚀 VIBE Server listo en: http://localhost:${port}`);
-  console.log(`👉 Callback Google: http://localhost:${port}/auth/google/callback`);
-  console.log(`👉 Callback Facebook: http://localhost:${port}/auth/facebook/callback`);
+  console.log(`👉 Callback Google: ${protocol}://${domain}/auth/google/callback`);
+  console.log(`👉 Callback Facebook: ${protocol}://${domain}/auth/facebook/callback`);
 });
 
 server.on('error', (error: any) => {

@@ -8,11 +8,16 @@ const PORT = process.env.PORT || 3000;
 
 // --- CONFIGURACIÓN GOOGLE ---
 if (process.env.GOOGLE_CLIENT_ID) {
-    const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
+    // Forzamos el uso del dominio público real configurado
+    let domain = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${PORT}`;
+    domain = domain.replace(/^https?:\/\//, ''); // Limpiar si el usuario pone https://
+    
+    const callbackUrl = domain.includes('localhost') ? `http://${domain}/auth/google/callback` : `https://${domain}/auth/google/callback`;
+
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID.trim(),
         clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
-        callbackURL: domain.includes('localhost') ? `http://${domain}/auth/google/callback` : `https://${domain}/auth/google/callback`,
+        callbackURL: callbackUrl,
         passReqToCallback: true // Importante para recibir el vibe_color del state
       },
       async (req, accessToken, refreshToken, profile, done) => {
@@ -45,11 +50,15 @@ if (process.env.GOOGLE_CLIENT_ID) {
 
 // --- CONFIGURACIÓN FACEBOOK ---
 if (process.env.FACEBOOK_APP_ID) {
-    const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
+    let domain = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${PORT}`;
+    domain = domain.replace(/^https?:\/\//, '');
+    
+    const callbackUrl = domain.includes('localhost') ? `http://${domain}/auth/facebook/callback` : `https://${domain}/auth/facebook/callback`;
+
     passport.use(new FacebookStrategy({
         clientID: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET || '',
-        callbackURL: domain.includes('localhost') ? `http://${domain}/auth/facebook/callback` : `https://${domain}/auth/facebook/callback`,
+        callbackURL: callbackUrl,
         profileFields: ['id', 'emails', 'name', 'photos'], // Campos requeridos
         passReqToCallback: true
       },
