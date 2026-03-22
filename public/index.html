@@ -5,19 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VIBE - Connect your Aura</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #000; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { position: absolute; top: 0; left: 0; z-index: 0; }
-        .ui-layer { position: relative; z-index: 10; height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .glass-panel { background: rgba(20, 20, 30, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 2rem; width: 100%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .tab-btn.active { border-bottom: 2px solid #a855f7; color: #a855f7; }
-        #toast { visibility: hidden; min-width: 250px; background-color: #a855f7; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); bottom: 30px; font-size: 17px; }
-        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="auth-bg">
     <!-- Fondo 3D Cuántico -->
     <canvas id="vibe-canvas"></canvas>
 
