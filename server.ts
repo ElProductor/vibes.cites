@@ -10,6 +10,8 @@ import passport from './passport'; // Importar configuración de Passport
 const app = express();
 const port = process.env.PORT || 3000;
 
+app.set('trust proxy', 1); // Confiar en el proxy inverso de Railway
+
 app.use(bodyParser.json());
 
 // --- BÚSQUEDA INTELIGENTE DE CARPETA PUBLIC ---
