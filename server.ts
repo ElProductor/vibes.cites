@@ -21,7 +21,18 @@ const controller = new VibeController();
 
 // Ruta de inicio explícita para asegurar que cargue en la nube
 app.get('/', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+    const indexPath = path.join(process.cwd(), 'public', 'index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            res.status(200).send(`
+                <div style="font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #0f0f13; color: white; padding: 50px; height: 100vh;">
+                    <h1 style="color: #a855f7;">🚀 VIBE Backend Online</h1>
+                    <p>El motor del servidor está funcionando perfectamente en Railway.</p>
+                    <p style="color: #9ca3af;">Sin embargo, no se detectó la carpeta <b>public/</b> con tu HTML. Asegúrate de hacer git push de la carpeta.</p>
+                </div>
+            `);
+        }
+    });
 });
 
 // Autenticación
