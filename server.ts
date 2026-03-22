@@ -12,7 +12,7 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 
 // Servir archivos estáticos (Frontend)
-app.use(express.static(path.join(process.cwd(), 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(passport.initialize()); // Inicializar Passport
 
 const controller = new VibeController();
@@ -21,7 +21,7 @@ const controller = new VibeController();
 
 // Ruta de inicio explícita para asegurar que cargue en la nube
 app.get('/', (req, res) => {
-    const indexPath = path.join(process.cwd(), 'public', 'index.html');
+    const indexPath = path.join(__dirname, 'public', 'index.html');
     res.sendFile(indexPath, (err) => {
         if (err) {
             res.status(200).send(`
