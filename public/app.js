@@ -1,4 +1,5 @@
-const API_URL = window.location.origin;
+// Pon aquí la URL real que te dio Railway (sin la barra al final)
+const API_URL = 'https://TU-URL-DE-RAILWAY.up.railway.app';
 let currentUser = null;
 let token = localStorage.getItem('vibe_token');
 

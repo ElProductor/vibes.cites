@@ -1,0 +1,17 @@
+{
+  "name": "VIBE - Connect your Aura",
+  "short_name": "VIBE",
+  "description": "La app para conectar con tu misma sintonía.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5023/5023023.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

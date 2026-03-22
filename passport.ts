@@ -7,10 +7,13 @@ const authService = new AuthService();
 const PORT = process.env.PORT || 3000;
 
 // --- CONFIGURACIÓN GOOGLE ---
-if (process.env.GOOGLE_CLIENT_ID) {
+const googleClientId = (process.env.GOOGLE_CLIENT_ID || '').trim();
+const googleClientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
+
+if (googleClientId) {
     passport.use(new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID.trim(),
-        clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
+        clientID: googleClientId,
+        clientSecret: googleClientSecret,
         callbackURL: '/auth/google/callback',
         proxy: true, // Fundamental para Railway y proxies
         passReqToCallback: true // Importante para recibir el vibe_color del state
@@ -44,10 +47,13 @@ if (process.env.GOOGLE_CLIENT_ID) {
 }
 
 // --- CONFIGURACIÓN FACEBOOK ---
-if (process.env.FACEBOOK_APP_ID) {
+const facebookAppId = (process.env.FACEBOOK_APP_ID || '').trim();
+const facebookAppSecret = (process.env.FACEBOOK_APP_SECRET || '').trim();
+
+if (facebookAppId) {
     passport.use(new FacebookStrategy({
-        clientID: process.env.FACEBOOK_APP_ID,
-        clientSecret: process.env.FACEBOOK_APP_SECRET || '',
+        clientID: facebookAppId,
+        clientSecret: facebookAppSecret,
         callbackURL: '/auth/facebook/callback',
         proxy: true, // Fundamental para Railway y proxies
         profileFields: ['id', 'emails', 'name', 'photos'], // Campos requeridos

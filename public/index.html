@@ -6,6 +6,9 @@
     <title>VIBE - Connect your Aura</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
+    <!-- Configuración PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
 </head>
 <body class="auth-bg">
     <!-- Fondo 3D Cuántico -->
@@ -99,5 +102,15 @@
 
     <div id="toast"></div>
     <script src="app.js"></script>
+    <script>
+      // Registrar el Service Worker para habilitar la instalación de la App
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Motor de App instalado con éxito', reg))
+            .catch(err => console.log('Fallo al instalar motor de App', err));
+        });
+      }
+    </script>
 </body>
 </html>
