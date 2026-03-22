@@ -8,10 +8,11 @@ const PORT = process.env.PORT || 3000;
 
 // --- CONFIGURACIÓN GOOGLE ---
 if (process.env.GOOGLE_CLIENT_ID) {
+    const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID.trim(),
         clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
-        callbackURL: `https://${process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`}/auth/google/callback`,
+        callbackURL: domain.includes('localhost') ? `http://${domain}/auth/google/callback` : `https://${domain}/auth/google/callback`,
         passReqToCallback: true // Importante para recibir el vibe_color del state
       },
       async (req, accessToken, refreshToken, profile, done) => {
@@ -44,10 +45,11 @@ if (process.env.GOOGLE_CLIENT_ID) {
 
 // --- CONFIGURACIÓN FACEBOOK ---
 if (process.env.FACEBOOK_APP_ID) {
+    const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
     passport.use(new FacebookStrategy({
         clientID: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET || '',
-        callbackURL: `https://${process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`}/auth/facebook/callback`,
+        callbackURL: domain.includes('localhost') ? `http://${domain}/auth/facebook/callback` : `https://${domain}/auth/facebook/callback`,
         profileFields: ['id', 'emails', 'name', 'photos'], // Campos requeridos
         passReqToCallback: true
       },

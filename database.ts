@@ -40,17 +40,32 @@ export class LocalDB {
       if (!fs.existsSync(schemaPath)) {
         schemaPath = path.join(__dirname, '../schema.sql');
       }
-      const schema = fs.readFileSync(schemaPath, 'utf8');
-      await this.pool.query(schema);
+      let schema = fs.readFileSync(schemaPath, 'utf8');
+      
+      // Auto-Traducción de SQLite a PostgreSQL
+      schema = schema.replace(/DATETIME/g, 'TIMESTAMP');
+      schema = schema.replace(/BOOLEAN DEFAULT 0/g, 'BOOLEAN DEFAULT FALSE');
+      schema = schema.replace(/BOOLEAN DEFAULT 1/g, 'BOOLEAN DEFAULT TRUE');
+      schema = schema.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY');
+
+      try {
+        await this.pool.query(schema);
+      } catch (err) {
+        console.error("❌ Error creando tablas en PostgreSQL:", err);
+      }
+
       // Seed if empty
-      const eventCount = await this.pool.query("SELECT COUNT(*) as count FROM events");
-      if (parseInt(eventCount.rows[0].count) === 0) {
-        console.log("🌱 Sembrando base de datos...");
-        await this.pool.query(`INSERT INTO events (id, name, lat, lng, distance, capacity) VALUES 
-        ('1', 'Neon Art Drop 🍸', 19.4326, -99.1332, '0.5km', '90%'),
-        ('2', 'Bresh Party Mexico', 19.4340, -99.1350, '1.2km', '85%'),
-        ('3', 'Secret Rooftop (Vibe+)', 19.4300, -99.1400, '3km', '100%')`);
-        // Add other seeds similarly
+      try {
+        const eventCount = await this.pool.query("SELECT COUNT(*) as count FROM events");
+        if (parseInt(eventCount.rows[0].count) === 0) {
+          console.log("🌱 Sembrando base de datos PostgreSQL...");
+          await this.pool.query(`INSERT INTO events (id, name, lat, lng, distance, capacity) VALUES 
+          ('1', 'Neon Art Drop 🍸', 19.4326, -99.1332, '0.5km', '90%'),
+          ('2', 'Bresh Party Mexico 🪩', 19.4340, -99.1350, '1.2km', '85%'),
+          ('3', 'Secret Rooftop (Vibe+) 🌙', 19.4300, -99.1400, '3km', '100%')`);
+        }
+      } catch (err) {
+        console.error("❌ Error en seeding de PostgreSQL:", err);
       }
     } else {
       // SQLite
