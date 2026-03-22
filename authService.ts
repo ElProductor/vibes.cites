@@ -63,9 +63,9 @@ export class AuthService {
   // Motor de envío SMS profesional usando Twilio (Fetch Nativo)
   private async sendSmsApi(phone: string, message: string) {
     try {
-      const sid = process.env.TWILIO_ACCOUNT_SID;
-      const token = process.env.TWILIO_AUTH_TOKEN;
-      const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+      const sid = (process.env.TWILIO_ACCOUNT_SID || '').trim();
+      const token = (process.env.TWILIO_AUTH_TOKEN || '').trim();
+      const fromPhone = (process.env.TWILIO_PHONE_NUMBER || '').trim();
 
       // Si no hay credenciales, permitimos que el código se imprima en consola (Modo Pruebas)
       if (!sid || !token) {
@@ -76,7 +76,7 @@ export class AuthService {
       const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
       const params = new URLSearchParams();
       params.append('To', phone);
-      params.append('From', fromPhone || '');
+      params.append('From', fromPhone);
       params.append('Body', message);
 
       const auth = Buffer.from(`${sid}:${token}`).toString('base64');
@@ -93,8 +93,8 @@ export class AuthService {
       const data = await response.json();
       if (data.error_message) console.warn('⚠️ Alerta Twilio:', data.error_message);
       return !data.error_message;
-    } catch (error) {
-      console.error('❌ Error crítico enviando SMS vía API:', error);
+    } catch (error: any) {
+      console.error('❌ Error crítico enviando SMS vía API:', error.message || error);
       return false;
     }
   }
