@@ -36,7 +36,11 @@ export class LocalDB {
 
     if (this.pool) {
       // PostgreSQL
-      const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+      let schemaPath = path.join(__dirname, 'schema.sql');
+      if (!fs.existsSync(schemaPath)) {
+        schemaPath = path.join(__dirname, '../schema.sql');
+      }
+      const schema = fs.readFileSync(schemaPath, 'utf8');
       await this.pool.query(schema);
       // Seed if empty
       const eventCount = await this.pool.query("SELECT COUNT(*) as count FROM events");
@@ -97,7 +101,11 @@ export class LocalDB {
         // Ignore
       }
 
-      const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+      let schemaPath = path.join(__dirname, 'schema.sql');
+      if (!fs.existsSync(schemaPath)) {
+        schemaPath = path.join(__dirname, '../schema.sql');
+      }
+      const schema = fs.readFileSync(schemaPath, 'utf8');
       await db.exec(schema);
 
       await db.run('PRAGMA foreign_keys = ON;');
