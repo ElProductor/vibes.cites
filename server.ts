@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import bodyParser from 'body-parser';
 import * as path from 'path'; // Importar path
+import * as fs from 'fs'; // Importar file system para validación
 import { VibeController } from './eventcontroller';
 import { authMiddleware } from './middleware';
 import passport from './passport'; // Importar configuración de Passport
@@ -11,8 +12,17 @@ const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
+// --- BÚSQUEDA INTELIGENTE DE CARPETA PUBLIC ---
+let publicPath = path.join(process.cwd(), 'public'); // Opción A: Raíz pura (Railway)
+if (!fs.existsSync(publicPath)) {
+    publicPath = path.join(__dirname, '../public'); // Opción B: Si arranca desde dist/
+}
+if (!fs.existsSync(publicPath)) {
+    publicPath = path.join(__dirname, 'public'); // Opción C: Si arranca localmente
+}
+
 // Servir archivos estáticos (Frontend)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(publicPath));
 app.use(passport.initialize()); // Inicializar Passport
 
 const controller = new VibeController();
@@ -21,7 +31,7 @@ const controller = new VibeController();
 
 // Ruta de inicio explícita para asegurar que cargue en la nube
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
+    const indexPath = path.join(publicPath, 'index.html');
     res.sendFile(indexPath, (err) => {
         if (err) {
             res.status(200).send(`
