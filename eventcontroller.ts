@@ -24,6 +24,19 @@ const chatService = new ChatService(notificationService); // Inyectado
 const reputationService = new ReputationService(notificationService); // Inyectado
 const verificationService = new VerificationService();
 
+// Motor Matemático Real (Fórmula del Semiverseno / Haversine) para distancias geográficas
+function getDistanceInKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return -1;
+    const R = 6371; // Radio de la Tierra en KM
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+              Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return Math.round((R * c) * 10) / 10; // Redondeado a 1 decimal
+}
+
 export class VibeController {
   
   private io?: any;
@@ -153,12 +166,29 @@ export class VibeController {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ success: false });
     
-    const { bio, occupation, zodiacSign } = req.body;
+    const { bio, occupation, zodiacSign, avatarBase64 } = req.body;
     try {
       await db.query(`UPDATE users SET bio = $1, occupation = $2, zodiac_sign = $3 WHERE id = $4`, [bio, occupation, zodiacSign, userId]);
+      if (avatarBase64) {
+          await db.query(`UPDATE users SET profile_audio_url = $1 WHERE id = $2`, [avatarBase64, userId]); // Reutilizamos campo como avatar URL para el MVP
+      }
       res.json({ success: true, message: 'Perfil actualizado con éxito ✨' });
     } catch (e) {
       res.status(500).json({ success: false, message: 'Error guardando tu perfil.' });
+    }
+  }
+
+  // Endpoint: POST /users/location
+  // Guarda las coordenadas reales del hardware del dispositivo
+  async updateLocation(req: any, res: any) {
+    const userId = req.user?.id;
+    const { lat, lng } = req.body;
+    if (!userId || lat == null || lng == null) return res.status(400).json({ success: false });
+    try {
+        await db.query(`UPDATE users SET location_lat = $1, location_long = $2 WHERE id = $3`, [lat, lng, userId]);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false });
     }
   }
 
@@ -293,6 +323,9 @@ export class VibeController {
       for (const candidate of candidatesRes.rows) {
           const aiAnalysis = vibeAI.analyzeResonance(currentUser, candidate);
           
+          // Distancia 100% Real basada en coordenadas GPS y curvatura terrestre
+          const dist = getDistanceInKm(currentUser.location_lat, currentUser.location_long, candidate.location_lat, candidate.location_long);
+
           // Solo mostrar matches que vibren alto (Sinergia mayor al 65%)
           if (aiAnalysis.synergy > 65) {
               matches.push({
@@ -303,7 +336,8 @@ export class VibeController {
                   synergy: aiAnalysis.synergy,
                   breakdown: aiAnalysis.breakdown,
                   commonInterest: aiAnalysis.insight,
-                  bio: candidate.bio || 'Vibing ✨'
+                  bio: candidate.bio || 'Vibing ✨',
+                  distance: dist
               });
           }
       }

@@ -135,6 +135,7 @@ app.get('/users/:id/badges', authMiddleware, (req, res) => controller.getUserBad
 app.post('/users/photos', authMiddleware, (req, res) => controller.uploadPhoto(req, res));
 app.post('/users/update', authMiddleware, (req, res) => controller.updateProfile(req, res));
 app.post('/users/verify', authMiddleware, (req, res) => controller.verifyIdentity(req, res));
+app.post('/users/location', authMiddleware, (req, res) => controller.updateLocation(req, res));
 app.get('/users/:userId/notifications', authMiddleware, (req, res) => controller.getNotifications(req, res));
 app.get('/api/chats/:targetId/messages', authMiddleware, (req, res) => controller.getChatHistory(req, res)); // Historial Real
 
