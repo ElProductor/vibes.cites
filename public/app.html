@@ -9,8 +9,16 @@
     <!-- Configuración PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f0f13">
+    <!-- Leaflet GPS Map (Librería Gráfica) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Socket.io Client -->
+    <script src="/socket.io/socket.io.js"></script>
 </head>
-<body class="app-bg p-4 max-w-md mx-auto overflow-x-hidden pb-24">
+<body class="app-bg min-h-[100dvh] flex flex-col md:justify-center items-center md:p-6 overflow-x-hidden bg-[#0a0a0c]">
+
+    <!-- CONTENEDOR PRINCIPAL RESPONSIVE (Magia para PC) -->
+    <div class="w-full max-w-md md:max-w-4xl md:min-h-[85vh] md:bg-gray-900/40 md:backdrop-blur-3xl md:border md:border-gray-800 md:rounded-[2.5rem] md:shadow-2xl p-4 md:p-8 pb-24 md:pb-8 relative flex flex-col">
 
     <!-- HEADER -->
     <header class="flex justify-between items-center mb-6 mt-2">
@@ -18,70 +26,1009 @@
             <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 tracking-tighter">VIBE</h1>
             <div id="welcome-message" class="text-sm text-gray-400 font-medium"></div>
         </div>
-        <button onclick="logout()" class="text-xs bg-gray-800 hover:bg-red-600 px-4 py-2 rounded-full text-gray-200 transition-colors">Cerrar Sesión</button>
+        <div class="flex items-center gap-4">
+            <div id="god-mode-btn" class="hidden mr-1">
+                <button onclick="openGodMode()" class="bg-red-600 hover:bg-red-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.6)] animate-pulse border border-red-400">👑 GOD</button>
+            </div>
+            <button onclick="toggleNotifications()" class="relative text-gray-400 hover:text-white transition transform hover:scale-110">
+                <span class="text-xl">🔔</span>
+                <span id="notification-badge" class="hidden absolute -top-1 -right-1 flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-pink-500"></span>
+                </span>
+            </button>
+            <button onclick="logout()" class="text-xs font-bold bg-gray-800 hover:bg-red-600 px-4 py-2 rounded-full text-gray-200 transition-colors shadow-md">Salir</button>
+        </div>
     </header>
 
-    <!-- STORIES (CARRUSEL HORIZONTAL) -->
-    <section class="mb-8">
-        <h2 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">En Vivo Ahora</h2>
-        <div id="stories-container" class="flex gap-4 overflow-x-auto pb-2 snap-x scrollbar-hide">
-            <p class="text-gray-600 text-sm animate-pulse">Buscando el radar...</p>
+    <!-- PANEL DE NOTIFICACIONES -->
+    <div id="notifications-dropdown" class="hidden absolute top-20 right-4 w-80 bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl z-[80] overflow-hidden">
+        <div class="p-4 border-b border-gray-800 bg-gray-900 flex justify-between items-center">
+            <h3 class="text-sm font-bold text-white tracking-widest uppercase">Notificaciones</h3>
+            <button onclick="toggleNotifications()" class="text-gray-400 hover:text-white font-bold text-lg leading-none">&times;</button>
         </div>
-    </section>
-
-    <!-- MATCHES (CONEXIONES) -->
-    <section class="mb-8">
-        <h2 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Tus Conexiones</h2>
-        <div id="matches-container" class="flex gap-4 overflow-x-auto pb-2 snap-x scrollbar-hide">
-            <p class="text-gray-600 text-sm animate-pulse">Analizando auras...</p>
+        <div id="notifications-list" class="max-h-72 overflow-y-auto scrollbar-hide">
+            <p class="text-xs text-gray-500 text-center p-4">Analizando ondas...</p>
         </div>
-    </section>
+    </div>
 
-    <!-- LIVE FEED -->
-    <section>
-        <h2 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Pulso de la Ciudad</h2>
-        <div class="space-y-4" id="feed-container">
-            <p class="text-gray-600 text-sm animate-pulse">Cargando la vibra...</p>
+        <!-- BANNERS DINÁMICOS -->
+        <div id="vibe-hour-banner" class="hidden bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl p-4 mb-6 shadow-[0_0_20px_rgba(219,39,119,0.5)] border border-pink-400">
+            <h3 class="font-black text-white text-lg uppercase tracking-widest flex items-center gap-2"><span>⚡</span> Onda Vibe Activa <span>⚡</span></h3>
+            <p class="text-sm text-white/90 font-medium mt-1">¡Modo VIP desbloqueado! Interactúa y únete a eventos premium sin límites.</p>
         </div>
-    </section>
 
-    <!-- BOTTOM NAV FIJA -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-md border-t border-gray-800 flex justify-around p-4 max-w-md mx-auto z-50">
-        <button class="text-purple-400 transition transform hover:scale-110">🔥<br><span class="text-[10px]">Feed</span></button>
-        <button class="text-gray-500 hover:text-gray-300 transition transform hover:scale-110">📍<br><span class="text-[10px]">Radar</span></button>
-        <button class="text-gray-500 hover:text-gray-300 transition transform hover:scale-110">💬<br><span class="text-[10px]">Chats</span></button>
-        <button class="text-gray-500 hover:text-gray-300 transition transform hover:scale-110">👤<br><span class="text-[10px]">Perfil</span></button>
+        <div id="daily-reward-banner" class="hidden bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl p-4 mb-6 shadow-lg transform transition hover:scale-[1.02] cursor-pointer border border-yellow-400" onclick="claimDailyReward()">
+            <h3 class="font-bold text-white text-lg flex items-center gap-2"><span>🎁</span> Recompensa Diaria</h3>
+            <p class="text-sm text-white/90 mt-1">Haz clic para reclamar tus Vibe Coins de hoy y mantener tu racha viva.</p>
+        </div>
+
+        <!-- VIEWS SCROLLABLES -->
+        <div class="flex-1 overflow-y-auto scrollbar-hide md:pr-4 relative">
+            
+            <!-- DASHBOARD -->
+            <div id="view-dashboard">
+                
+                <!-- FORECAST CUÁNTICO -->
+                <div id="daily-forecast-card" class="bg-gray-900/60 backdrop-blur-md rounded-2xl p-4 border border-gray-800 shadow-lg mb-6 relative overflow-hidden hidden transform hover:scale-[1.02] transition">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-pink-500"></div>
+                    <h3 class="text-sm font-black text-white flex items-center gap-2 mb-2"><span>🔮</span> El Oráculo Cuántico</h3>
+                    <p id="daily-forecast-text" class="text-xs text-gray-300 leading-relaxed italic"></p>
+                </div>
+
+                <section class="mb-8">
+                    <h2 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">En Vivo Ahora</h2>
+                    <div id="stories-container" class="flex gap-4 overflow-x-auto pb-2 snap-x scrollbar-hide"></div>
+                </section>
+                <section class="mb-8">
+                    <h2 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Tus Conexiones</h2>
+                    <div id="matches-container" class="flex gap-4 overflow-x-auto pb-2 snap-x scrollbar-hide">
+                        <div class="w-full text-center py-6 border border-gray-800 rounded-2xl bg-gray-900/50 shadow-inner"><p class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 font-black animate-pulse flex flex-col items-center gap-2"><span>🧠</span> Vibe Quantum AI escaneando almas compatibles...</p></div>
+                    </div>
+                </section>
+                
+                <!-- NUEVO SOCIAL FEED -->
+                <section class="mb-8">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">VIBE Feed <button onclick="triggerHaptic('light'); loadSocialFeed();" class="hover:text-purple-400 hover:rotate-180 transition duration-500">🔄</button></h2>
+                        <div class="flex gap-2">
+                            <button onclick="openNewPostModal()" class="text-xs bg-purple-600/20 text-purple-400 px-4 py-2 rounded-full border border-purple-500/50 hover:bg-purple-600/40 transition font-bold shadow-[0_0_10px_rgba(168,85,247,0.2)] flex items-center gap-1">✍️ <span class="hidden md:inline">Publicar</span></button>
+                        </div>
+                    </div>
+                    <div id="social-feed-container" class="space-y-4">
+                        <p class="text-gray-500 text-sm">Cargando vibras...</p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Eventos Destacados</h2>
+                    <div class="space-y-4" id="feed-container"></div>
+                </section>
+            </div>
+
+    <!-- CONTENEDOR: CHATS -->
+    <div id="view-chats" class="hidden">
+                <h2 class="text-xl font-bold text-white mb-4 tracking-tight">Tus Conexiones Activas</h2>
+        
+        <!-- Buscador de Chats -->
+        <div class="mb-4 relative">
+            <input type="text" id="chat-search" onkeyup="filterChats()" placeholder="🔍 Buscar por nombre o vibra..." class="w-full bg-gray-900 border border-gray-700 rounded-full px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 shadow-inner text-sm">
+        </div>
+
+        <div id="chat-list" class="space-y-3">
+            <p class="text-gray-500 text-sm text-center mt-10">No tienes mensajes nuevos.<br>¡Conecta con alguien en el radar!</p>
+        </div>
+                
+                <!-- Vista Interna de Chat Activo -->
+                <div id="active-chat-view" class="hidden flex-col h-[60vh] bg-gray-950/50 rounded-2xl border border-gray-800 p-4 shadow-inner mt-2">
+                    <div class="flex items-center gap-3 border-b border-gray-800 pb-3 mb-3">
+                        <button onclick="closeChat()" class="text-gray-400 hover:text-white transition p-2">←</button>
+                        <img id="active-chat-avatar" src="" class="w-10 h-10 rounded-full object-cover">
+                        <h3 id="active-chat-name" class="text-white font-bold">...</h3>
+                    </div>
+                    <div id="chat-messages" class="flex-1 overflow-y-auto space-y-3 mb-4 scrollbar-hide text-sm"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chat-input" oninput="handleTyping()" class="flex-1 bg-gray-800 border border-gray-700 rounded-full px-4 py-2 text-white focus:outline-none focus:border-purple-500 shadow-inner" placeholder="Envía una vibra...">
+                        <button onclick="sendMsg()" class="bg-purple-600 hover:bg-purple-700 transition px-5 py-2 rounded-full text-white font-bold shadow-[0_0_10px_rgba(168,85,247,0.4)]">🚀</button>
+                    </div>
+                </div>
+    </div>
+
+    <!-- CONTENEDOR: PERFIL -->
+    <div id="view-profile" class="hidden">
+        <h2 class="text-xl font-bold text-white mb-4 tracking-tight">Tu Identidad Estelar</h2>
+        <div id="profile-container" class="bg-gray-900/80 backdrop-blur-xl rounded-2xl p-5 border border-gray-800 text-gray-300 shadow-xl">
+            <p class="text-sm text-purple-400">Cargando datos biométricos y de perfil...</p>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR: RADAR -->
+    <div id="view-radar" class="hidden">
+        <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold text-white tracking-tight">Radar GPS</h2> <button onclick="openEventModal()" class="text-xs font-black bg-pink-600 hover:bg-pink-700 text-white px-3 py-1.5 rounded-full shadow-[0_0_10px_rgba(219,39,119,0.5)]">+ Organizar Fiesta</button></div>
+        <div id="radar-status" class="text-sm text-purple-400 mb-4">Iniciando escáner satelital...</div>
+        <div id="radar-map" class="w-full h-48 md:h-64 bg-gray-900 rounded-2xl border border-gray-800 mb-4 overflow-hidden relative z-0 hidden"></div>
+        <div id="radar-container" class="space-y-4 pb-10"></div>
+    </div>
+            
+        </div> <!-- FIN VIEWS SCROLLABLES -->
+
+        <!-- MODAL NUEVO POST -->
+        <div id="new-post-modal" class="hidden absolute inset-0 z-[60] bg-black/80 backdrop-blur-md flex justify-center items-center p-4 rounded-[2.5rem]">
+            <div class="bg-gray-900 border border-gray-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+                <h3 class="text-lg font-black text-white mb-4 flex items-center gap-2"><span>✨</span> Compartir una Vibra</h3>
+                <textarea id="new-post-content" rows="4" class="w-full bg-gray-950 text-gray-200 rounded-xl p-4 focus:outline-none focus:border-purple-500 border border-gray-800 mb-4 text-sm" placeholder="¿Qué estás pensando o a qué fiesta vas hoy?"></textarea>
+                
+                <!-- NATIVE CAMERA & CLOUD HOOK -->
+                <input type="file" id="post-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleCameraUpload(event)">
+                <input type="text" id="new-post-image" placeholder="Sube una foto o pega URL" class="w-full bg-gray-950 text-gray-200 rounded-xl p-3 focus:outline-none border border-gray-800 mb-4 text-sm">
+                
+                <div class="flex justify-between items-center mt-2">
+                    <button onclick="document.getElementById('post-camera-input').click()" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl transition shadow text-sm border border-gray-700 flex items-center gap-2">📸 <span class="hidden md:inline">Cámara</span></button>
+                    <div class="flex gap-2">
+                    <button onclick="closeNewPostModal()" class="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold">Cancelar</button>
+                    <button onclick="submitNewPost()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-xl transition shadow-[0_0_15px_rgba(168,85,247,0.5)] text-sm">Publicar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL ORGANIZAR EVENTO -->
+        <div id="new-event-modal" class="hidden absolute inset-0 z-[70] bg-black/80 backdrop-blur-md flex justify-center items-center p-4 rounded-[2.5rem]">
+            <div class="bg-gray-900 border border-purple-500/50 rounded-3xl p-6 w-full max-w-sm shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+                <h3 class="text-xl font-black text-white mb-4">🚀 Lanzar Evento al Radar</h3>
+                <input type="text" id="ev-name" placeholder="Nombre de la Fiesta/Evento" class="w-full bg-gray-950 rounded-xl p-3 mb-3 border border-gray-800 text-sm focus:border-pink-500 outline-none text-white">
+                <input type="text" id="ev-desc" placeholder="Descripción breve" class="w-full bg-gray-950 rounded-xl p-3 mb-3 border border-gray-800 text-sm focus:border-pink-500 outline-none text-white">
+                <input type="text" id="ev-lineup" placeholder="Lineup o DJs (Ej: BZRP, Feid)" class="w-full bg-gray-950 rounded-xl p-3 mb-3 border border-gray-800 text-sm focus:border-pink-500 outline-none text-white">
+                <div class="flex gap-2 mb-3">
+                    <input type="number" id="ev-price" placeholder="Precio ($USD)" class="w-1/2 bg-gray-950 rounded-xl p-3 border border-gray-800 text-sm focus:border-pink-500 outline-none text-white">
+                    <select id="ev-vibe" class="w-1/2 bg-gray-950 rounded-xl p-3 border border-gray-800 text-sm focus:border-pink-500 outline-none text-white"><option value="Wild & Dancing">🔥 Wild</option><option value="Chill & Networking">✨ Chill</option><option value="Deep Talks">🌙 Deep</option></select>
+                </div>
+                <div class="flex justify-end gap-3 mt-5">
+                    <button onclick="closeEventModal()" class="text-gray-400 hover:text-white px-4 py-2 font-bold">Cancelar</button>
+                    <button onclick="submitNewEvent()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black py-2 px-6 rounded-xl shadow-[0_0_15px_rgba(219,39,119,0.5)]">Crear VIP</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL EDITAR PERFIL -->
+        <div id="edit-profile-modal" class="hidden absolute inset-0 z-[70] bg-black/80 backdrop-blur-md flex justify-center items-center p-4 rounded-[2.5rem]">
+            <div class="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+                <h3 class="text-xl font-black text-white mb-4">⚙️ Configurar Identidad</h3>
+                <label class="text-xs text-gray-400 mb-1 block">Tu Biografía</label>
+                <textarea id="edit-bio" rows="3" class="w-full bg-gray-950 rounded-xl p-3 mb-3 border border-gray-800 text-sm focus:border-purple-500 outline-none text-white"></textarea>
+                <label class="text-xs text-gray-400 mb-1 block">Ocupación / Rol</label>
+                <input type="text" id="edit-occupation" class="w-full bg-gray-950 rounded-xl p-3 mb-3 border border-gray-800 text-sm focus:border-purple-500 outline-none text-white">
+                <label class="text-xs text-gray-400 mb-1 block">Signo Zodiacal</label>
+                <select id="edit-zodiac" class="w-full bg-gray-950 rounded-xl p-3 mb-3 border border-gray-800 text-sm focus:border-purple-500 outline-none text-white">
+                    <option value="Aries">Aries</option><option value="Taurus">Tauro</option><option value="Gemini">Géminis</option>
+                    <option value="Cancer">Cáncer</option><option value="Leo">Leo</option><option value="Virgo">Virgo</option>
+                    <option value="Libra">Libra</option><option value="Scorpio">Escorpio</option><option value="Sagittarius">Sagitario</option>
+                    <option value="Capricorn">Capricornio</option><option value="Aquarius">Acuario</option><option value="Pisces">Piscis</option>
+                </select>
+                <div class="flex justify-end gap-3 mt-5">
+                    <button onclick="closeEditProfileModal()" class="text-gray-400 hover:text-white px-4 py-2 font-bold">Cancelar</button>
+                    <button onclick="submitProfileEdit()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-2 px-6 rounded-xl shadow-[0_0_15px_rgba(168,85,247,0.5)]">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAV BAR (Fija abajo en móvil, Flotante en PC) -->
+        <nav class="fixed bottom-0 left-0 right-0 md:absolute md:bottom-8 md:left-1/2 md:-translate-x-1/2 md:w-[600px] md:rounded-full bg-gray-900/95 md:bg-gray-800/80 backdrop-blur-md border-t md:border border-gray-800 flex justify-around md:justify-center md:gap-12 p-4 md:p-3 z-50 shadow-2xl">
+        <button onclick="switchView('dashboard')" class="text-purple-400 transition transform hover:scale-110 nav-btn" id="nav-dashboard">🔥<br><span class="text-[10px]">Feed</span></button>
+        <button onclick="switchView('radar')" class="text-gray-500 hover:text-gray-300 transition transform hover:scale-110 nav-btn" id="nav-radar">📍<br><span class="text-[10px]">Radar</span></button>
+        <button onclick="switchView('chats')" class="text-gray-500 hover:text-gray-300 transition transform hover:scale-110 nav-btn" id="nav-chats">💬<br><span class="text-[10px]">Chats</span></button>
+        <button onclick="switchView('profile')" class="text-gray-500 hover:text-gray-300 transition transform hover:scale-110 nav-btn" id="nav-profile">👤<br><span class="text-[10px]">Perfil</span></button>
     </nav>
+    </div> <!-- FIN CONTENEDOR PC -->
+
+    <!-- GOD MODE MODAL SECRETO -->
+    <div id="god-mode-modal" class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex justify-center items-center p-4">
+        <div class="bg-red-950/40 border border-red-500 rounded-3xl p-6 w-full max-w-sm shadow-[0_0_50px_rgba(220,38,38,0.3)] transform transition-all scale-100">
+            <h3 class="text-2xl font-black text-white mb-2 flex items-center gap-2"><span>👑</span> MODO DIOS</h3>
+            <p class="text-xs text-red-400 mb-6 font-mono">Nivel de Acceso: CREADOR</p>
+            
+            <button onclick="broadcastMessage()" class="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-3 rounded-xl mb-4 transition shadow-lg flex items-center justify-center gap-2">📢 Alerta Global (Push)</button>
+            <button onclick="window.location.href='/admin'" class="w-full bg-gray-900 border border-gray-700 hover:bg-gray-800 text-white font-bold py-3 rounded-xl mb-6 transition shadow-lg flex items-center justify-center gap-2">💻 Entrar a Base de Datos Web</button>
+            
+            <div class="flex justify-end mt-2">
+                <button onclick="closeGodMode()" class="text-gray-400 hover:text-white font-bold px-4 py-2 bg-gray-900 rounded-lg">Ocultar Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MATCH CINEMÁTICO ULTRA-PREMIUM -->
+    <div id="cinematic-match-overlay" class="hidden fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center overflow-hidden backdrop-blur-2xl">
+        <h2 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600 mb-12 animate-[pulse_1s_infinite] tracking-tighter drop-shadow-[0_0_20px_rgba(236,72,153,0.5)]">IT'S A VIBE</h2>
+        <div class="flex items-center justify-center relative w-full max-w-sm h-48">
+            <img id="match-avatar-1" src="" class="absolute left-8 w-32 h-32 rounded-full border-4 border-purple-500 shadow-[0_0_50px_rgba(168,85,247,0.8)] object-cover animate-[slide-right_0.5s_ease-out_forwards] z-20">
+            <img id="match-avatar-2" src="" class="absolute right-8 w-32 h-32 rounded-full border-4 border-pink-500 shadow-[0_0_50px_rgba(236,72,153,0.8)] object-cover animate-[slide-left_0.5s_ease-out_forwards] z-10">
+            <div id="match-explosion" class="absolute inset-0 bg-gradient-to-radial from-white via-pink-500 to-transparent opacity-0 mix-blend-screen scale-0 pointer-events-none rounded-full z-30"></div>
+        </div>
+        <p class="text-pink-400 font-bold tracking-widest uppercase mt-8 text-sm animate-bounce">Sinergia Cuántica Encontrada</p>
+        <button onclick="closeCinematicMatch()" class="mt-10 bg-white text-black font-black px-8 py-3 rounded-full hover:scale-105 transition shadow-[0_0_20px_rgba(255,255,255,0.5)] z-40">Enviar Mensaje</button>
+    </div>
 
     <style>
         /* Ocultar barra de desplazamiento fea, pero permitir el scroll en móvil */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-right { from { transform: translateX(-200px) rotate(-20deg) scale(0.5); opacity: 0; } to { transform: translateX(0) rotate(0) scale(1); opacity: 1; } }
+        @keyframes slide-left { from { transform: translateX(200px) rotate(20deg) scale(0.5); opacity: 0; } to { transform: translateX(0) rotate(0) scale(1); opacity: 1; } }
+        @keyframes match-explode { 0% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(2); } 100% { opacity: 0; transform: scale(4); } }
     </style>
 
     <script>
         const token = localStorage.getItem('vibe_token');
         const userStr = localStorage.getItem('vibe_user');
+        let currentUserData = null;
+        let globalStatus = {};
+        let radarMap = null;
+        let userMarker = null;
+        let currentActiveChatId = null;
+        let socket = null;
+        let typingTimeout = null;
 
         if (!token) {
             window.location.href = '/'; 
         } else {
-            const user = JSON.parse(userStr);
-            document.getElementById('welcome-message').innerText = `Hola, ${user.username} ✨`;
+            currentUserData = JSON.parse(userStr);
+            document.getElementById('welcome-message').innerText = `Hola, ${currentUserData.username} ✨`;
+            
+            // Revelar herramientas si es administrador
+            if (currentUserData.is_admin) {
+                const godBtn = document.getElementById('god-mode-btn');
+                if (godBtn) godBtn.classList.remove('hidden');
+            }
+
             loadDashboard(); // Cargar todas las secciones de la API
+            loadNotifications(); // Cargar notificaciones al iniciar
+            initSocket(); // Conectar al motor en vivo
+        }
+
+        // --- MOTOR WEBSOCKET (TIEMPO REAL) ---
+        function initSocket() {
+            if (typeof io !== 'undefined' && currentUserData) {
+                socket = io(window.location.origin);
+                socket.emit('join_user_room', currentUserData.id);
+
+                socket.on('receive_message', (msg) => {
+                    if (currentActiveChatId === msg.sender_id) {
+                        appendMessageToChat(msg.content, false);
+                        if(typeof playSFX === 'function') playSFX('like');
+                    } else {
+                        if(navigator.vibrate) navigator.vibrate([30, 50, 30]);
+                        loadChats(); // Recargar bandeja si está cerrada
+                    }
+                });
+
+                socket.on('user_typing', (data) => {
+                    if (currentActiveChatId === data.senderId) showTypingIndicator();
+                });
+            }
+        }
+
+        // --- SISTEMA DE NOTIFICACIONES ---
+        function toggleNotifications() {
+            const panel = document.getElementById('notifications-dropdown');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) loadNotifications();
+        }
+
+        async function loadNotifications() {
+            if(!currentUserData) return;
+            try {
+                const res = await fetch(`/users/${currentUserData.id}/notifications`, { headers: { 'Authorization': `Bearer ${token}` }});
+                const data = await res.json();
+                const badge = document.getElementById('notification-badge');
+                const list = document.getElementById('notifications-list');
+                
+                if(data.success && data.notifications.length > 0) {
+                    badge.classList.remove('hidden');
+                    list.innerHTML = data.notifications.map(n => `
+                        <div onclick="markNotificationRead('${n.id}')" class="p-4 border-b border-gray-800 hover:bg-gray-900 transition cursor-pointer ${n.is_read ? 'opacity-50' : 'bg-gray-800/30'}">
+                            <p class="text-xs font-bold ${n.is_read ? 'text-gray-400' : 'text-pink-400'} mb-1">${n.title}</p>
+                            <p class="text-sm text-gray-200 leading-tight">${n.message}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    badge.classList.add('hidden');
+                    if(list) list.innerHTML = '<p class="text-xs text-gray-500 text-center p-6">No tienes vibras nuevas.</p>';
+                }
+            } catch(e) {}
+        }
+
+        async function markNotificationRead(id) {
+            try {
+                await fetch('/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ userId: currentUserData.id, notificationId: id }) });
+                loadNotifications();
+            } catch(e) {}
+        }
+
+        // --- FUNCIONES MODO DIOS ---
+        function openGodMode() { document.getElementById('god-mode-modal').classList.remove('hidden'); if(navigator.vibrate) navigator.vibrate(15); }
+        function closeGodMode() { document.getElementById('god-mode-modal').classList.add('hidden'); }
+        async function broadcastMessage() {
+            const msg = prompt("TRANSMISIÓN GLOBAL:\\nEscribe el mensaje que aparecerá forzosamente a todos los usuarios de la app:");
+            if(!msg) return;
+            try {
+                const res = await fetch('/api/admin/app-broadcast', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                alert(data.message);
+            } catch(e) { alert("Error de conexión"); }
+        }
+
+        // --- MOTOR DE NAVEGACIÓN REAL ---
+        function switchView(viewName) {
+            // Ocultar todas las vistas
+            ['dashboard', 'chats', 'profile', 'radar'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if(el) el.classList.add('hidden');
+            });
+
+            // Actualizar colores de los botones
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.replace('text-purple-400', 'text-gray-500'));
+            document.getElementById(`nav-${viewName}`).classList.replace('text-gray-500', 'text-purple-400');
+
+            // Mostrar la seleccionada
+            const target = document.getElementById(`view-${viewName}`);
+            if(target) target.classList.remove('hidden');
+            
+            if (viewName === 'profile') loadProfile();
+            if (viewName === 'radar') loadRadar();
+        }
+
+        // --- CARGA DE PERFIL REAL DESDE API ---
+        async function loadProfile() {
+            if(!currentUserData) return;
+            try {
+                const [profileRes, badgesRes] = await Promise.all([
+                    fetch(`/users/${currentUserData.id}/profile`, { headers: { 'Authorization': `Bearer ${token}` }}),
+                    fetch(`/users/${currentUserData.id}/badges`, { headers: { 'Authorization': `Bearer ${token}` }})
+                ]);
+                if (profileRes.status === 401 || profileRes.status === 403) return logout();
+                const data = await profileRes.json();
+                const badgesData = await badgesRes.json();
+
+                if(data.success) {
+                    // Generar HTML de Insignias
+                    let badgesHtml = '';
+                    if (badgesData.success && badgesData.badges.length > 0) {
+                        badgesHtml = `<div class="mb-6"><h4 class="text-xs font-black text-gray-500 mb-3 uppercase tracking-widest">🏆 Trofeos de Aura</h4><div class="flex gap-2 flex-wrap">${badgesData.badges.map(b => `<div class="bg-gray-950 border border-gray-800 rounded-xl p-2 flex items-center gap-2 shadow-inner transform transition hover:scale-110 cursor-help" title="${b.description}"><img src="${b.icon_url}" class="w-6 h-6 object-contain" alt="${b.name}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/5023/5023023.png'"><span class="text-[10px] text-gray-300 font-bold whitespace-nowrap">${b.name}</span></div>`).join('')}</div></div>`;
+                    }
+
+                    const colorAura = data.profile.basic.vibe_color || 'purple';
+                    document.getElementById('profile-container').innerHTML = `
+                        <div class="flex items-center gap-4 border-b border-gray-800 pb-4 mb-6">
+                            <div class="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-black text-white shadow-xl transform transition hover:scale-110" style="background-color: ${colorAura}; box-shadow: 0 0 30px ${colorAura}80; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                                ${data.profile.basic.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-black text-white tracking-tight flex items-center gap-1">${data.profile.basic.username} <span class="text-blue-400 text-xl" title="Cuenta Verificada">☑️</span></h3>
+                                <p class="text-sm text-pink-400 font-mono font-bold mt-1">Signo: ${data.profile.basic.zodiac}</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between bg-gray-950 p-5 rounded-2xl mb-6 border border-gray-800 shadow-inner">
+                            <div class="text-center w-1/2 border-r border-gray-800">
+                                <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Racha Activa</p>
+                                <p class="text-2xl font-black text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]">🔥 ${globalStatus?.streak || 0}</p>
+                            </div>
+                            <div class="text-center w-1/2">
+                                <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Vibe Coins</p>
+                                <p class="text-2xl font-black text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]">💎 ${globalStatus?.vibeCoins || 0}</p>
+                            </div>
+                        </div>
+                        <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-800 mb-6">
+                            <p id="profile-bio-text" class="text-sm text-gray-300 italic">"${data.profile.basic.bio}"</p>
+                        </div>
+
+                        <!-- UPSELLING: ADMIRADORES SECRETOS -->
+                        <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-800 mb-6 relative overflow-hidden group cursor-pointer" onclick="buyPremium()">
+                            <div class="absolute inset-0 bg-gradient-to-r from-pink-600/10 to-purple-600/10 opacity-50 group-hover:opacity-100 transition"></div>
+                            <div class="relative flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-pink-500/20 rounded-full flex items-center justify-center border border-pink-500/50"><span class="text-xl">👁️</span></div>
+                                    <div>
+                                        <p class="text-sm text-white font-bold tracking-tight">45 personas vieron tu perfil</p>
+                                        <p class="text-[10px] text-pink-400">Descubre quiénes son con VIBE+</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-pink-600 text-white font-bold px-3 py-1 rounded-full shadow-[0_0_10px_rgba(219,39,119,0.5)]">Ver 👀</span>
+                            </div>
+                        </div>
+
+                        <!-- INTEGRACIÓN MUSICAL -->
+                        <div id="spotify-integration-box">
+                            ${data.profile.spotifyConnected ? `
+                                <div class="bg-[#1DB954]/10 p-4 rounded-2xl border border-[#1DB954]/30 mb-6 shadow-inner">
+                                    <h4 class="text-[#1DB954] font-black text-sm mb-3 flex items-center gap-2"><span>🎵</span> ADN Musical Sincronizado</h4>
+                                    
+                                    ${data.profile.signatureSong ? `
+                                        <div class="bg-black/40 p-3 rounded-xl border border-[#1DB954]/50 flex items-center gap-3 mb-4 shadow-lg">
+                                            <div class="text-2xl animate-pulse">🎧</div>
+                                            <div class="overflow-hidden">
+                                                <p class="text-[10px] text-[#1DB954] font-black uppercase tracking-widest">Canción Insignia</p>
+                                                <p class="text-sm text-white font-bold truncate">${data.profile.signatureSong}</p>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                                    <div class="relative mb-4">
+                                        <input type="text" id="spotify-search-input" placeholder="Buscar canción insignia..." class="w-full bg-black/50 border border-[#1DB954]/50 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-[#1DB954]">
+                                        <button onclick="searchSpotify()" class="absolute right-2 top-1.5 text-xs bg-[#1DB954] hover:bg-[#1ed760] text-black font-black px-3 py-1.5 rounded-lg transition shadow-md">Buscar</button>
+                                    </div>
+                                    <div id="spotify-search-results" class="space-y-2 max-h-40 overflow-y-auto scrollbar-hide mb-4"></div>
+
+                                    ${data.profile.topArtists && data.profile.topArtists.length > 0 ? `
+                                        <div class="flex gap-2 flex-wrap mb-4">
+                                            ${data.profile.topArtists.map(a => `<span class="bg-black/50 border border-[#1DB954]/50 text-white text-xs px-3 py-1.5 rounded-full shadow-sm">${a}</span>`).join('')}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${data.profile.signatureSongId ? `<iframe style="border-radius:12px; margin-top:10px;" src="https://open.spotify.com/embed/track/${data.profile.signatureSongId}?utm_source=generator&theme=0" width="100%" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>` : ''}
+                                </div>
+                            ` : `
+                                <div class="bg-gray-950 p-4 rounded-2xl border border-gray-800 mb-6 flex items-center justify-between shadow-lg">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-[#1DB954]/20 rounded-full flex items-center justify-center border border-[#1DB954]/50"><span class="text-xl">🎵</span></div>
+                                        <div>
+                                            <p class="text-sm text-white font-bold tracking-tight">Conectar Spotify</p>
+                                            <p class="text-[10px] text-[#1DB954]">Sincroniza tu aura musical</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="connectSpotify()" class="bg-[#1DB954] hover:bg-[#1ed760] text-black text-xs font-black py-2 px-5 rounded-full transition transform hover:scale-105 shadow-[0_0_15px_rgba(29,185,84,0.4)]">Vincular</button>
+                                </div>
+                            `}
+                        </div>
+                        
+                        ${badgesHtml}
+
+                        <button onclick="enhanceBioWithAI()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 border border-purple-500 hover:scale-[1.02] py-4 rounded-xl font-bold text-white transition shadow-[0_0_15px_rgba(168,85,247,0.4)] mb-4 flex justify-center items-center gap-2">🧠 Mejora tu Bio con IA</button>
+                        <button onclick="buyPremium()" class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 border border-yellow-400 hover:scale-[1.02] py-4 rounded-xl font-black text-white transition shadow-[0_0_15px_rgba(250,204,21,0.4)] mb-4 flex justify-center items-center gap-2">💎 Comprar VIBE+ (Stripe)</button>
+                        <button onclick="openEditProfileModal()" class="w-full bg-gray-900 border border-gray-700 hover:border-gray-500 py-4 rounded-xl font-bold text-gray-400 transition flex justify-center items-center gap-2 hover:bg-gray-800">⚙️ Ajustes Manuales</button>
+                    `;
+                }
+            } catch (e) {
+                console.error('Error cargando perfil:', e);
+            }
+        }
+
+        // --- GESTIÓN MANUAL DE PERFIL ---
+        function openEditProfileModal() {
+            document.getElementById('edit-bio').value = document.getElementById('profile-bio-text')?.innerText.replace(/"/g, '') || '';
+            document.getElementById('edit-profile-modal').classList.remove('hidden');
+        }
+        function closeEditProfileModal() { document.getElementById('edit-profile-modal').classList.add('hidden'); }
+        
+        async function submitProfileEdit() {
+            const bio = document.getElementById('edit-bio').value;
+            const occupation = document.getElementById('edit-occupation').value;
+            const zodiacSign = document.getElementById('edit-zodiac').value;
+            try {
+                const res = await fetch('/users/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ bio, occupation, zodiacSign })
+                });
+                if ((await res.json()).success) { closeEditProfileModal(); loadProfile(); }
+            } catch(e) {}
+        }
+
+        // --- CARGA DE RADAR GPS ---
+        async function loadRadar() {
+            const statusEl = document.getElementById('radar-status');
+            const container = document.getElementById('radar-container');
+            const mapContainer = document.getElementById('radar-map');
+            
+            statusEl.innerText = "🛰️ Conectando con red de satélites globales...";
+            statusEl.className = "text-sm text-purple-400 mb-4 animate-pulse";
+            container.innerHTML = '';
+            mapContainer.classList.add('hidden');
+
+            if (!navigator.geolocation) {
+                statusEl.innerText = "❌ Tu dispositivo/navegador no soporta Geolocalización real.";
+                statusEl.classList.remove('animate-pulse', 'text-purple-400');
+                statusEl.classList.add('text-red-500');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                statusEl.innerText = `📍 Satélite sincronizado. Coordenadas: ${lat.toFixed(4)}, ${lng.toFixed(4)}\n📡 Triangulando auras cercanas...`;
+                mapContainer.classList.remove('hidden');
+
+                // Construcción de Mapa Cartográfico
+                if (!radarMap) {
+                    radarMap = L.map('radar-map').setView([lat, lng], 15);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; OpenStreetMap contributors',
+                        subdomains: 'abcd',
+                        maxZoom: 20
+                    }).addTo(radarMap);
+                    
+                    const userIcon = L.divIcon({
+                        className: 'bg-transparent',
+                        html: `<div class="w-5 h-5 bg-purple-500 rounded-full border-2 border-white shadow-[0_0_15px_rgba(168,85,247,1)] animate-ping flex items-center justify-center"></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    });
+                    userMarker = L.marker([lat, lng], {icon: userIcon}).addTo(radarMap);
+                } else {
+                    radarMap.setView([lat, lng], 15);
+                    userMarker.setLatLng([lat, lng]);
+                }
+                
+                // Fuerza al mapa a adaptarse a la pantalla del móvil/PC sin bugs
+                setTimeout(() => radarMap.invalidateSize(), 300);
+                
+                try {
+                    const res = await fetch('/api/parties/radar', { headers: { 'Authorization': `Bearer ${token}` }});
+                    const data = await res.json();
+                    
+                    statusEl.classList.remove('animate-pulse');
+                    if (data.success && data.parties && data.parties.length > 0) {
+                        statusEl.innerText = `🔥 Encontramos ${data.parties.length} zonas de alta vibración cerca de ti.`;
+                        container.innerHTML = data.parties.map(p => `
+                            <div class="bg-gray-900 rounded-3xl p-4 border border-gray-800 flex flex-col gap-3 shadow-xl relative overflow-hidden group">
+                                <div class="flex gap-4 items-center relative z-10">
+                                    <img src="${p.image}" class="w-20 h-20 rounded-2xl object-cover border border-gray-700 shadow-md group-hover:scale-105 transition duration-500">
+                                    <div class="flex-1">
+                                        <h3 class="font-black text-white text-lg leading-tight">${p.name}</h3>
+                                        <p class="text-[10px] text-pink-500 uppercase tracking-widest font-black mt-1 bg-pink-500/10 inline-block px-2 py-0.5 rounded-sm">${p.vibe}</p>
+                                        ${p.lineup ? `<p class="text-[11px] text-gray-300 mt-1.5 font-medium">🎧 <span class="text-white">${p.lineup}</span></p>` : ''}
+                                    </div>
+                                </div>
+                                <div class="relative z-10 text-xs text-gray-400 italic px-1">${p.description}</div>
+                                <div class="flex justify-between items-center mt-2 border-t border-gray-800 pt-3 relative z-10">
+                                    <div>
+                                        <p class="text-[10px] text-gray-500 uppercase tracking-widest font-black">Entrada</p>
+                                        <p class="text-sm font-black ${p.ticketPrice > 0 ? 'text-yellow-400' : 'text-green-400'}">${p.ticketPrice > 0 ? '$' + p.ticketPrice + ' USD' : 'Gratis / RSVP'}</p>
+                                    </div>
+                                    <button onclick="joinParty('${p.id}')" class="bg-white text-black hover:bg-purple-500 hover:text-white font-black py-2.5 px-6 rounded-xl transition shadow-[0_0_15px_rgba(255,255,255,0.2)]">Tickets</button>
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        // Añadir los pines (Fuegos) de los eventos al mapa 3D
+                        data.parties.forEach(p => {
+                            if (p.lat && p.lng) {
+                                const partyIcon = L.divIcon({
+                                    className: 'bg-transparent',
+                                    html: `<div class="text-xl drop-shadow-[0_0_10px_rgba(219,39,119,0.8)] transform hover:scale-125 transition">🔥</div>`,
+                                    iconSize: [24, 24],
+                                    iconAnchor: [12, 12]
+                                });
+                                L.marker([p.lat, p.lng], {icon: partyIcon}).addTo(radarMap).bindPopup(`<b style="color:black">${p.name}</b><br><span style="color:gray; font-size:10px;">VIBE: ${p.vibe}</span>`);
+                            }
+                        });
+                    } else {
+                        statusEl.innerText = "📡 No hay eventos activos en tu radar en este momento.";
+                    }
+
+                    // ✨ SIMULACIÓN SNAP MAP DE AURAS VIVAS CERCANAS
+                    const auras = [
+                        { lat: userMarker.getLatLng().lat + 0.002, lng: userMarker.getLatLng().lng + 0.001, color: '#00FF80', name: 'Alien' },
+                        { lat: userMarker.getLatLng().lat - 0.001, lng: userMarker.getLatLng().lng - 0.002, color: '#FF4C4C', name: 'Mia' },
+                        { lat: userMarker.getLatLng().lat + 0.003, lng: userMarker.getLatLng().lng - 0.001, color: '#3B82F6', name: 'Leo' }
+                    ];
+                    auras.forEach(aura => {
+                        const auraIcon = L.divIcon({ className: 'bg-transparent', html: `<div class="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center overflow-hidden shadow-lg transform hover:scale-125 transition" style="box-shadow: 0 0 20px ${aura.color}; background: ${aura.color}40;"><span class="text-[8px] font-black text-white drop-shadow-md">${aura.name.charAt(0)}</span></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
+                        L.marker([aura.lat, aura.lng], {icon: auraIcon}).addTo(radarMap).bindPopup(`<b style="color:black">${aura.name}</b><br><span style="color:gray; font-size:10px;">Vibrando cerca de ti ✨</span>`);
+                    });
+
+                } catch(e) {
+                    statusEl.innerText = "❌ Error conectando con el satélite VIBE.";
+                    statusEl.classList.remove('animate-pulse');
+                }
+            }, (error) => {
+                let errorMsg = "❌ Permiso de ubicación denegado o GPS desactivado.";
+                if (error.code === 1) errorMsg = "❌ Debes otorgar permiso de ubicación en el navegador/celular.";
+                else if (error.code === 2) errorMsg = "❌ Señal de GPS no encontrada. Revisa tu red.";
+                else if (error.code === 3) errorMsg = "❌ Tiempo de espera agotado buscando satélites.";
+                
+                statusEl.innerText = errorMsg;
+                statusEl.classList.remove('animate-pulse', 'text-purple-400');
+                statusEl.classList.add('text-red-500');
+                console.error("GPS Error:", error);
+            }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        }
+
+        async function joinParty(eventId) {
+            if(!currentUserData) return;
+            try {
+                const res = await fetch('/events/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ userId: currentUserData.id, eventId: eventId })
+                });
+                const data = await res.json();
+                alert(data.message); // Muestra el resultado real del Backend
+            } catch(e) {
+                alert("❌ Error de red al intentar unirse.");
+            }
+        }
+
+        // --- SISTEMA DE CHAT REAL ---
+        async function loadChats() {
+            try {
+                const res = await fetch('/api/chats', { headers: { 'Authorization': `Bearer ${token}` }});
+                const data = await res.json();
+                if(data.success && data.chats.length > 0) {
+                    document.getElementById('chat-list').innerHTML = data.chats.map(c => `
+                        <div data-name="${c.name}" onclick="openChat('${c.id}', '${c.name}', '${c.avatar}')" class="chat-item bg-gray-900 hover:bg-gray-800 transition rounded-2xl p-4 border border-gray-800 flex gap-4 items-center cursor-pointer shadow-md transform hover:scale-[1.02]">
+                            <img src="${c.avatar}" class="w-14 h-14 rounded-full object-cover border-2 border-purple-500/50 shadow-lg">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-white">${c.name}</h3>
+                                <p class="text-xs text-gray-400 truncate">${c.lastMessage}</p>
+                            </div>
+                            <span class="text-[10px] text-pink-400 font-bold">${c.time}</span>
+                        </div>
+                    `).join('');
+                }
+            } catch(e) {}
+        }
+
+        // --- CREADOR DE EVENTOS SATELITALES ---
+        function openEventModal() { document.getElementById('new-event-modal').classList.remove('hidden'); }
+        function closeEventModal() { document.getElementById('new-event-modal').classList.add('hidden'); }
+        
+        async function submitNewEvent() {
+            const name = document.getElementById('ev-name').value;
+            const desc = document.getElementById('ev-desc').value;
+            const lineup = document.getElementById('ev-lineup').value;
+            const price = document.getElementById('ev-price').value;
+            const vibe = document.getElementById('ev-vibe').value;
+            
+            if(!name) return alert("Falta el nombre del evento.");
+            
+            // Tomamos la lat/lng actual del usuario (centro de su mapa)
+            const center = userMarker ? userMarker.getLatLng() : { lat: 19.4326, lng: -99.1332 };
+            
+            try {
+                const res = await fetch('/api/events/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name, description: desc, lineup, ticketPrice: price, vibe, lat: center.lat, lng: center.lng, imageUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80' }) });
+                const data = await res.json();
+                alert(data.message);
+                closeEventModal(); loadRadar(); // Recargar mapa
+            } catch(e) {}
+        }
+
+        // --- CÁMARA NATIVA ---
+        function handleCameraUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('new-post-image').value = e.target.result;
+                    if(typeof triggerHaptic === 'function') triggerHaptic('success');
+                    if(typeof showToast === 'function') showToast('📸 Imagen capturada. Lista para subirse a la nube.', 'success');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Buscador Inteligente de Chats
+        function filterChats() {
+            const term = document.getElementById('chat-search').value.toLowerCase();
+            document.querySelectorAll('.chat-item').forEach(el => {
+                el.style.display = el.dataset.name.toLowerCase().includes(term) ? 'flex' : 'none';
+            });
+        }
+
+        async function openChat(targetId, name, avatar) {
+            currentActiveChatId = targetId;
+            document.getElementById('chat-list').classList.add('hidden');
+            const view = document.getElementById('active-chat-view');
+            view.classList.remove('hidden'); view.classList.add('flex');
+            document.getElementById('active-chat-name').innerText = name;
+            document.getElementById('active-chat-avatar').src = avatar;
+            
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = '<p class="text-center text-gray-500 text-xs mt-4 animate-pulse">Cargando vibras pasadas...</p>';
+            try {
+                const res = await fetch(`/api/chats/${targetId}/messages`, { headers: { 'Authorization': `Bearer ${token}` }});
+                const data = await res.json();
+                container.innerHTML = '';
+                if(data.success && data.messages.length > 0) {
+                    data.messages.forEach(m => appendMessageToChat(m.content, m.sender_id === currentUserData.id));
+                } else {
+                    container.innerHTML = `<div class="text-center text-gray-500 text-xs mt-4 italic">El chat está cifrado. Sé el primero en hablar.</div>`;
+                }
+            } catch(e) { container.innerHTML = ''; }
+        }
+
+        function closeChat() {
+            currentActiveChatId = null;
+            document.getElementById('active-chat-view').classList.add('hidden');
+            document.getElementById('active-chat-view').classList.remove('flex');
+            document.getElementById('chat-list').classList.remove('hidden');
+        }
+
+        function handleTyping() {
+            if(socket && currentActiveChatId) socket.emit('typing', { senderId: currentUserData.id, receiverId: currentActiveChatId });
+        }
+
+        function showTypingIndicator() {
+            let container = document.getElementById('chat-messages');
+            let ind = document.getElementById('chat-typing-indicator');
+            if(!ind) {
+                const div = document.createElement('div');
+                div.id = 'chat-typing-indicator';
+                div.className = 'self-start text-xs text-pink-400 italic animate-pulse mt-1 p-2';
+                div.innerText = 'Escribiendo... 💬';
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => { let ex = document.getElementById('chat-typing-indicator'); if(ex) ex.remove(); }, 3000);
+        }
+
+        function appendMessageToChat(content, isMine) {
+            const container = document.getElementById('chat-messages');
+            const oldInd = document.getElementById('chat-typing-indicator');
+            if(oldInd) oldInd.remove();
+            const div = document.createElement('div');
+            div.className = isMine ? "self-end bg-purple-600 text-white p-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow animate-[fade-in_0.2s_ease-out]" : "self-start bg-gray-800 text-gray-200 p-3 rounded-2xl rounded-tl-sm max-w-[80%] shadow animate-[fade-in_0.2s_ease-out]";
+            div.innerText = content;
+            container.appendChild(div);
+            if(oldInd) container.appendChild(oldInd);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMsg() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg || !currentActiveChatId) return;
+            
+            appendMessageToChat(msg, true);
+            input.value = '';
+
+            try {
+                await fetch('/chat/send', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ senderId: currentUserData.id, receiverId: currentActiveChatId, content: msg, type: 'TEXT' })
+                });
+            } catch(e) {}
+        }
+
+        // --- SISTEMA DE RECOMPENSAS DIARIAS ---
+        async function claimDailyReward() {
+            if(typeof triggerHaptic === 'function') triggerHaptic('success');
+            if(typeof playSFX === 'function') playSFX('coin');
+            
+            try {
+                const res = await fetch('/api/rewards/claim', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }});
+                const data = await res.json();
+                if(data.success) {
+                    alert(data.message);
+                    document.getElementById('daily-reward-banner').classList.add('hidden');
+                    globalStatus.streak = (globalStatus.streak || 0) + 1;
+                    globalStatus.vibeCoins = (globalStatus.vibeCoins || 0) + data.reward;
+                    if(!document.getElementById('view-profile').classList.contains('hidden')) loadProfile();
+                }
+            } catch(e) {}
+        }
+
+        // --- SISTEMA DE IA Y PAGOS (NUEVO) ---
+        async function enhanceBioWithAI() {
+            if(!currentUserData) return;
+            const currentBio = document.getElementById('profile-bio-text')?.innerText.replace(/"/g, '') || '';
+            try {
+                const res = await fetch('/api/ai/enhance-profile', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ currentBio })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert(data.message);
+                    loadProfile(); // Recarga visual instantánea
+                }
+            } catch(e) { console.error(e) }
+        }
+
+        async function buyPremium() {
+            if(!currentUserData) return;
+            if(typeof triggerHaptic === 'function') triggerHaptic('light');
+            try {
+                const res = await fetch('/api/checkout/premium', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ userId: currentUserData.id, plan: 'vibe_plus' })
+                });
+                const data = await res.json();
+                if(data.success && data.url) {
+                    window.location.href = data.url; // Te lleva al checkout nativo de Stripe
+                } else {
+                    alert(data.message);
+                    loadProfile();
+                }
+            } catch(e) { console.error(e) }
+        }
+
+        // --- SOCIAL FEED & INTEGRATIONS ---
+        async function connectSpotify() {
+            try {
+                const res = await fetch('/api/integrations/spotify', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }});
+                const data = await res.json();
+                alert(data.message);
+                loadProfile(); // Actualizar vista
+            } catch(e) {}
+        }
+
+        async function searchSpotify() {
+            const query = document.getElementById('spotify-search-input').value;
+            if(!query) return;
+            const resBox = document.getElementById('spotify-search-results');
+            resBox.innerHTML = '<p class="text-xs text-[#1DB954] text-center font-bold animate-pulse">Analizando biblioteca...</p>';
+            try {
+                const res = await fetch('/api/integrations/spotify/search', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ query })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    resBox.innerHTML = data.results.map(r => `
+                        <div class="flex justify-between items-center bg-black/40 p-2 rounded-xl border border-gray-800 hover:border-[#1DB954]/50 transition">
+                            <div class="flex items-center gap-3">
+                                <img src="${r.cover}" class="w-10 h-10 rounded-lg object-cover shadow-md">
+                                <div class="overflow-hidden">
+                                    <p class="text-xs text-white font-bold truncate max-w-[140px]">${r.title}</p>
+                                    <p class="text-[10px] text-gray-400 truncate max-w-[140px]">${r.artist}</p>
+                                </div>
+                            </div>
+                            <button onclick="setSignatureSong('${r.title}', '${r.artist}', '${r.id}')" class="text-xs bg-[#1DB954] hover:bg-white text-black px-3 py-1.5 rounded-lg font-black transition shadow-lg shrink-0">Elegir</button>
+                        </div>
+                    `).join('');
+                }
+            } catch(e) { resBox.innerHTML = '<p class="text-xs text-red-500 text-center">Error de conexión</p>'; }
+        }
+
+        async function setSignatureSong(title, artist, spotifyId) {
+            try {
+                const res = await fetch('/api/integrations/spotify/signature', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ songTitle: title, artist, spotifyId })
+                });
+                const data = await res.json();
+                alert(data.message);
+                loadProfile(); // Refrescar visualmente
+            } catch(e) { alert('Error guardando canción'); }
+        }
+
+        async function loadSocialFeed() {
+            try {
+                const res = await fetch('/api/social-feed', { headers: { 'Authorization': `Bearer ${token}` }});
+                const data = await res.json();
+                if(data.success) {
+                    const container = document.getElementById('social-feed-container');
+                    if (data.posts.length === 0) {
+                        container.innerHTML = `<p class="text-gray-500 text-sm text-center py-8 bg-gray-900/30 rounded-2xl border border-gray-800 shadow-inner">Sé el primero en compartir una vibra hoy ✨</p>`;
+                        return;
+                    }
+                    container.innerHTML = data.posts.map(p => `
+                        <div class="bg-gray-900/60 backdrop-blur-sm rounded-2xl p-5 border border-gray-800 shadow-lg transition transform hover:-translate-y-1">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-white shadow-lg border border-gray-700" style="background-color: ${p.vibe_color || '#a855f7'}">
+                                    ${p.username ? p.username.charAt(0).toUpperCase() : 'V'}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-white text-sm tracking-tight">${p.username || 'Usuario'}</h4>
+                                    <span class="text-[10px] text-gray-500 font-medium">${p.created_at ? new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Hace un momento'}</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-200 mb-4 leading-relaxed">${p.content}</p>
+                            ${p.image_url ? `<img src="${p.image_url}" class="w-full h-48 object-cover rounded-xl mb-4 border border-gray-800">` : ''}
+                            <div class="flex gap-6 border-t border-gray-800 pt-3">
+                                <button onclick="likePost(${p.id})" class="text-gray-400 hover:text-pink-500 transition text-xs font-bold flex items-center gap-1.5"><span class="text-base">🔥</span> <span id="like-count-${p.id}">${p.likes_count || 0}</span></button>
+                                <button class="text-gray-400 hover:text-purple-400 transition text-xs font-bold flex items-center gap-1.5"><span class="text-base">💬</span> Comentar</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch(e) {}
+        }
+
+        function openNewPostModal() { document.getElementById('new-post-modal').classList.remove('hidden'); }
+        function closeNewPostModal() { document.getElementById('new-post-modal').classList.add('hidden'); document.getElementById('new-post-content').value = ''; document.getElementById('new-post-image').value = ''; }
+        
+        async function submitNewPost() {
+            const content = document.getElementById('new-post-content').value.trim();
+            const imageUrl = document.getElementById('new-post-image').value.trim();
+            if (!content) return;
+            try {
+                const res = await fetch('/api/social-feed/post', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ content, imageUrl }) });
+                if ((await res.json()).success) { closeNewPostModal(); loadSocialFeed(); }
+            } catch(e) {}
+        }
+        
+        async function likePost(postId) {
+            if(typeof triggerHaptic === 'function') triggerHaptic('light');
+            if(typeof playSFX === 'function') playSFX('like');
+            try {
+                const res = await fetch('/api/social-feed/like', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ postId }) });
+                if ((await res.json()).success) loadSocialFeed();
+            } catch(e) {}
+        }
+
+        async function sendSuperVibe(targetId) {
+            if(typeof triggerHaptic === 'function') triggerHaptic('success');
+            if(typeof playSFX === 'function') playSFX('warp');
+            try {
+                const res = await fetch('/api/interactions/super-vibe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ targetId })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    // ✨ CINE: 50% de probabilidad de generar un Match Mutuo Instantáneo 
+                    if (Math.random() > 0.5 && currentUserData) {
+                        // Simulamos que conseguimos su avatar temporalmente
+                        const myAvatar = `https://ui-avatars.com/api/?name=${currentUserData.username}&background=random`;
+                        const targetAvatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop';
+                        triggerCinematicMatch(myAvatar, targetAvatar);
+                    } else {
+                        alert(data.message);
+                    }
+                    if (!document.getElementById('view-profile').classList.contains('hidden')) loadProfile();
+                } else {
+                    // 💥 Rechazo Sensorial: Glitch Haptic si no tienes monedas
+                    if(navigator.vibrate) navigator.vibrate([50, 100, 50, 100, 50]);
+                    alert(data.message);
+                }
+            } catch(e) { console.error(e) }
+        }
+
+        // --- MATCH CINEMÁTICO ---
+        function triggerCinematicMatch(avatar1, avatar2) {
+            if(navigator.vibrate) navigator.vibrate([100, 50, 300, 50, 500]); 
+            if(typeof playSFX === 'function') setTimeout(() => playSFX('warp'), 100);
+            const overlay = document.getElementById('cinematic-match-overlay');
+            document.getElementById('match-avatar-1').src = avatar1;
+            document.getElementById('match-avatar-2').src = avatar2;
+            overlay.classList.remove('hidden');
+            
+            setTimeout(() => {
+                document.getElementById('match-explosion').style.animation = 'match-explode 1.5s ease-out forwards';
+                if(typeof playSFX === 'function') playSFX('coin');
+            }, 500);
+        }
+        function closeCinematicMatch() {
+            document.getElementById('cinematic-match-overlay').classList.add('hidden');
+            document.getElementById('match-explosion').style.animation = 'none';
+            switchView('chats');
         }
 
         async function loadDashboard() {
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            // Llamamos a las 3 APIs en paralelo para máxima velocidad
-            Promise.all([
-                fetch('/api/stories', { headers }).then(r => r.json()),
-                fetch('/api/matches', { headers }).then(r => r.json()),
-                fetch('/api/live-feed', { headers }).then(r => r.json())
-            ]).then(([storiesData, matchesData, feedData]) => {
-                
+            fetch('/api/daily-status', { headers }).then(r => {
+                if(r.status === 401 || r.status === 403) logout();
+                return r.json();
+            }).then(data => {
+                if(data && data.success) {
+                    globalStatus = data;
+                    if(data.isVibeHour) document.getElementById('vibe-hour-banner').classList.remove('hidden');
+                    if(data.canClaimReward) document.getElementById('daily-reward-banner').classList.remove('hidden');
+                }
+            });
+
+            loadSocialFeed(); // Carga de la red social en paralelo
+            
+            // 1. Cargar Historias (Independiente)
+            fetch('/api/stories', { headers }).then(r => { if(r.status===401) logout(); return r.json()}).then(storiesData => {
                 if (storiesData.success) {
+                    if(storiesData.stories.length === 0) {
+                        document.getElementById('stories-container').innerHTML = '<p class="text-xs text-gray-500">No hay historias activas.</p>';
+                        return;
+                    }
                     document.getElementById('stories-container').innerHTML = storiesData.stories.map(s => `
                         <div class="snap-center shrink-0 w-20 flex flex-col items-center gap-1 cursor-pointer transform hover:scale-105 transition">
                             <div class="w-16 h-16 rounded-full p-[2px] ${s.isLive ? 'bg-gradient-to-tr from-pink-500 to-purple-500' : 'bg-gray-700'}">
@@ -91,19 +1038,31 @@
                         </div>
                     `).join('');
                 }
+            }).catch(() => {});
 
+            // 2. Cargar Matches
+            fetch('/api/matches', { headers }).then(r => r.json()).then(matchesData => {
                 if (matchesData.success) {
-                    document.getElementById('matches-container').innerHTML = matchesData.matches.map(m => `
-                        <div class="snap-center shrink-0 w-40 bg-gray-800 rounded-2xl overflow-hidden shadow-lg border border-gray-700 relative cursor-pointer transform hover:scale-105 transition">
-                            <img src="${m.avatar}" class="w-full h-48 object-cover opacity-90 hover:opacity-100 transition">
-                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 pt-8">
-                                <p class="font-bold text-white text-sm">${m.name}, ${m.age}</p>
-                                <p class="text-[10px] text-pink-400 font-bold">${m.synergy}% Sinergia</p>
+                    if(matchesData.matches.length === 0) {
+                        document.getElementById('matches-container').innerHTML = `<p class="text-xs text-gray-500 text-center w-full mt-4">La IA no encontró auras de alta compatibilidad cerca aún.</p>`;
+                    } else {
+                        document.getElementById('matches-container').innerHTML = matchesData.matches.map(m => `
+                        <div class="snap-center shrink-0 w-44 bg-gray-800 rounded-2xl overflow-hidden shadow-lg border border-gray-700 relative group">
+                            <img src="${m.avatar}" class="w-full h-56 object-cover opacity-90 group-hover:opacity-100 transition">
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent p-3 pt-14">
+                                <p class="font-black text-white text-sm tracking-tight flex items-center gap-1">${m.name}, ${m.age} <span class="text-blue-400 text-xs">☑️</span></p>
+                                <p class="text-[10px] text-purple-400 font-bold mb-1"><span class="text-pink-500">✨ ${m.synergy}%</span> Sinergia IA</p>
+                                <p class="text-[8px] text-gray-400 leading-tight border-t border-gray-700 pt-1 mt-1 mb-2 line-clamp-2">${m.commonInterest}</p>
+                                <button onclick="sendSuperVibe('${m.id}')" class="w-full bg-gradient-to-r from-pink-600 to-orange-500 hover:from-pink-500 hover:to-orange-400 text-white text-[10px] font-black py-1.5 rounded-lg transition shadow-[0_0_10px_rgba(236,72,153,0.5)] transform hover:scale-105">⚡ SUPER VIBE (50 💎)</button>
                             </div>
                         </div>
                     `).join('');
+                    }
                 }
+            }).catch(() => {});
 
+            // 3. Cargar Feed
+            fetch('/api/live-feed', { headers }).then(r => r.json()).then(feedData => {
                 if (feedData.success) {
                     document.getElementById('feed-container').innerHTML = feedData.feed.map(item => `
                         <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-lg border border-gray-800 transform transition hover:-translate-y-1 cursor-pointer">
@@ -115,7 +1074,7 @@
                         </div>
                     `).join('');
                 }
-            }).catch(e => console.error("Error cargando dashboard:", e));
+            }).catch(() => {});
         }
 
         function logout() { localStorage.clear(); window.location.href = '/'; }

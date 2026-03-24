@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_verified BOOLEAN DEFAULT 0,
     is_adult_content_allowed BOOLEAN DEFAULT 0,
     is_blocked BOOLEAN DEFAULT 0,
+    is_admin BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

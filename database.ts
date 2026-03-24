@@ -22,7 +22,7 @@ export class LocalDB {
       });
       this.localDbPromise = connection.then(async (db) => {
         try {
-          await this.init();
+          await this.init(db);
         } catch (e) {
           console.error("❌ Error crítico inicializando DB:", e);
         }
@@ -31,7 +31,7 @@ export class LocalDB {
     }
   }
 
-  async init() {
+  async init(sqliteDb?: Database) {
     console.log("⚙️ Inicializando Motor de Base de Datos...");
 
     if (this.pool) {
@@ -50,6 +50,32 @@ export class LocalDB {
 
       try {
         await this.pool.query(schema);
+
+        // Tablas y columnas adicionales para Social Feed e Integraciones
+        await this.pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS spotify_id VARCHAR(255);`);
+        
+        // Nuevas columnas de Eventos Comerciales
+        await this.pool.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS description TEXT;`);
+        await this.pool.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS ticket_price REAL DEFAULT 0;`);
+        await this.pool.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS lineup TEXT;`);
+        await this.pool.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS image_url VARCHAR(255);`);
+        await this.pool.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS vibe VARCHAR(50);`);
+
+        await this.pool.query(`
+          CREATE TABLE IF NOT EXISTS social_posts (
+              id SERIAL PRIMARY KEY,
+              user_id TEXT REFERENCES users(id),
+              content TEXT NOT NULL,
+              image_url VARCHAR(255),
+              likes_count INT DEFAULT 0,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS post_likes (
+              post_id INTEGER REFERENCES social_posts(id),
+              user_id TEXT REFERENCES users(id),
+              PRIMARY KEY (post_id, user_id)
+          );
+        `);
       } catch (err) {
         console.error("❌ Error creando tablas en PostgreSQL:", err);
       }
@@ -60,16 +86,16 @@ export class LocalDB {
         if (parseInt(eventCount.rows[0].count) === 0) {
           console.log("🌱 Sembrando base de datos PostgreSQL...");
           await this.pool.query(`INSERT INTO events (id, name, lat, lng, distance, capacity) VALUES 
-          ('1', 'Neon Art Drop 🍸', 19.4326, -99.1332, '0.5km', '90%'),
-          ('2', 'Bresh Party Mexico 🪩', 19.4340, -99.1350, '1.2km', '85%'),
-          ('3', 'Secret Rooftop (Vibe+) 🌙', 19.4300, -99.1400, '3km', '100%')`);
+          ('1', 'Neon Art Drop 🍸', 19.4326, -99.1332, '0.5km', 90),
+          ('2', 'Bresh Party Mexico 🪩', 19.4340, -99.1350, '1.2km', 85),
+          ('3', 'Secret Rooftop (Vibe+) 🌙', 19.4300, -99.1400, '3km', 100)`);
         }
       } catch (err) {
         console.error("❌ Error en seeding de PostgreSQL:", err);
       }
-    } else {
+    } else if (sqliteDb) {
       // SQLite
-      const db = await this.localDbPromise!;
+      const db = sqliteDb;
       await db.run('PRAGMA foreign_keys = OFF;');
 
       // --- AUTOCORRECCIÓN DE ESQUEMA (Solo para desarrollo) ---
@@ -103,6 +129,29 @@ export class LocalDB {
         await ensureCol('profile_audio_url', 'VARCHAR(255)');
         await ensureCol('is_verified', 'BOOLEAN DEFAULT 0');
         await ensureCol('is_adult_content_allowed', 'BOOLEAN DEFAULT 0');
+        await ensureCol('bio', 'TEXT');
+        await ensureCol('occupation', 'VARCHAR(255)');
+        await ensureCol('zodiac_sign', 'VARCHAR(50)');
+        await ensureCol('vibe_color', 'VARCHAR(50)');
+        await ensureCol('gender', 'VARCHAR(50)');
+        await ensureCol('gender_preference', 'VARCHAR(50)');
+        await ensureCol('birth_date', 'DATE');
+        await ensureCol('vibe_coins', 'INTEGER DEFAULT 0');
+        await ensureCol('streak_days', 'INTEGER DEFAULT 0');
+        await ensureCol('last_reward_claim', 'DATETIME');
+        await ensureCol('spotify_id', 'VARCHAR(255)');
+
+        // Columnas comerciales para Eventos
+        const eventCols = await db.all("PRAGMA table_info(events)");
+        const eventColNames = eventCols.map((c: any) => c.name);
+        const ensureEventCol = async (name: string, def: string) => {
+          if (!eventColNames.includes(name)) await db.exec(`ALTER TABLE events ADD COLUMN ${name} ${def};`);
+        };
+        await ensureEventCol('description', 'TEXT');
+        await ensureEventCol('ticket_price', 'REAL DEFAULT 0');
+        await ensureEventCol('lineup', 'TEXT');
+        await ensureEventCol('image_url', 'VARCHAR(255)');
+        await ensureEventCol('vibe', 'VARCHAR(50)');
 
         await db.exec(`
           DELETE FROM users
@@ -115,6 +164,23 @@ export class LocalDB {
       } catch (e) {
         // Ignore
       }
+
+      // Tablas para Social Feed
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS social_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT REFERENCES users(id),
+            content TEXT NOT NULL,
+            image_url VARCHAR(255),
+            likes_count INT DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS post_likes (
+            post_id INTEGER REFERENCES social_posts(id),
+            user_id TEXT REFERENCES users(id),
+            PRIMARY KEY (post_id, user_id)
+        );
+      `);
 
       let schemaPath = path.join(__dirname, 'schema.sql');
       if (!fs.existsSync(schemaPath)) {
@@ -129,9 +195,9 @@ export class LocalDB {
       if (eventCount.count === 0) {
         console.log("🌱 Sembrando base de datos con eventos e interacciones reales...");
         await db.run(`INSERT INTO events (id, name, lat, lng, distance, capacity) VALUES 
-        ('1', 'Neon Art Drop 🍸', 19.4326, -99.1332, '0.5km', '90%'),
-        ('2', 'Bresh Party Mexico', 19.4340, -99.1350, '1.2km', '85%'),
-        ('3', 'Secret Rooftop (Vibe+)', 19.4300, -99.1400, '3km', '100%')`);
+        ('1', 'Neon Art Drop 🍸', 19.4326, -99.1332, '0.5km', 90),
+        ('2', 'Bresh Party Mexico', 19.4340, -99.1350, '1.2km', 85),
+        ('3', 'Secret Rooftop (Vibe+)', 19.4300, -99.1400, '3km', 100)`);
 
         await db.run(`INSERT INTO matches (id, user_a, user_b, matched_name, matched_age, synergy, common_interest, event_id) VALUES 
         ('m1', 'all', 'u1', 'Ana', 24, 94, 'Bad Bunny (Spotify) & Signos de Fuego (Co-Star)', '1'),

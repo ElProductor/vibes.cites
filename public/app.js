@@ -1,5 +1,30 @@
-// URL de producción en Railway
-const API_URL = 'https://vibescites-production-3f34.up.railway.app';
+// --- DETECCIÓN INTELIGENTE DE ENTORNO Y CONEXIÓN ---
+let API_URL = window.location.origin;
+
+// Detectar si estamos en Capacitor (App Nativa) o en un Navegador Web (PC/Móvil)
+const isNativeApp = !!window.Capacitor;
+const isAndroid = isNativeApp && window.Capacitor.getPlatform() === 'android';
+const isIOS = isNativeApp && window.Capacitor.getPlatform() === 'ios';
+const isMobileWeb = !isNativeApp && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isPCWeb = !isNativeApp && !isMobileWeb;
+
+if (isAndroid) {
+    API_URL = 'http://10.0.2.2:3000'; // Puente interno para Emulador Android
+} else if (isIOS) {
+    API_URL = 'http://localhost:3000'; // Simulador iOS
+} else {
+    // Entorno Web (Localhost, IP Wi-Fi o Producción)
+    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost') {
+        API_URL = 'http://127.0.0.1:3000';
+    }
+}
+
+// ☁️ Descomentar para Producción en Railway:
+// API_URL = 'https://vibescites-production-3f34.up.railway.app';
+
+console.log(`🌍 Entorno detectado: ${isNativeApp ? (isAndroid ? 'App Android' : 'App iOS') : (isPCWeb ? 'Web PC' : 'Web Móvil')}`);
+console.log(`🔌 Conectando al Backend en: ${API_URL}`);
+
 let currentUser = null;
 let token = localStorage.getItem('vibe_token');
 
@@ -12,7 +37,7 @@ const urlError = urlParams.get('error');
 
 // Manejo de errores de redirección
 if (urlError) {
-    showToast('Error de acceso: ' + (urlError === 'login_failed' ? 'No se pudo iniciar sesión' : urlError));
+    showToast('Error de acceso: ' + (urlError === 'login_failed' ? 'No se pudo iniciar sesión' : urlError), 'error');
     window.history.replaceState({}, document.title, "/");
 }
 
@@ -42,12 +67,52 @@ const vibeState = {
 let currentLoginMethod = 'phone';
 let currentRegisterMethod = 'phone';
 
+// --- MOTOR SENSORIAL (HÁPTICO Y EXTRAS) ---
+
+function triggerHaptic(type = 'light') {
+    if (!navigator.vibrate) return; // Fallback silencioso si no hay soporte
+    try {
+        if (type === 'light') navigator.vibrate(15); // Pulsación muy sutil (teclas)
+        else if (type === 'success') navigator.vibrate([30, 60, 40]); // Doble pulso alegre
+        else if (type === 'error') navigator.vibrate([50, 100, 50, 100, 50]);
+    } catch (e) {}
+}
+
+// --- MOTOR DE AUDIO SINTETIZADO (SFX) ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+function playSFX(type) {
+    try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        
+        if (type === 'coin') { osc.type = 'sine'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); osc.start(); osc.stop(audioCtx.currentTime + 0.1); setTimeout(() => { const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain(); o2.connect(g2); g2.connect(audioCtx.destination); o2.type = 'sine'; o2.frequency.setValueAtTime(1600, audioCtx.currentTime); g2.gain.setValueAtTime(0.1, audioCtx.currentTime); g2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2); o2.start(); o2.stop(audioCtx.currentTime + 0.2); }, 100); }
+        else if (type === 'like') { osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime); gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); osc.start(); osc.stop(audioCtx.currentTime + 0.1); setTimeout(() => { const o2 = audioCtx.createOscillator(); const g2 = audioCtx.createGain(); o2.connect(g2); g2.connect(audioCtx.destination); o2.type = 'sine'; o2.frequency.setValueAtTime(600, audioCtx.currentTime); g2.gain.setValueAtTime(0.1, audioCtx.currentTime); g2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1); o2.start(); o2.stop(audioCtx.currentTime + 0.1); }, 50); }
+        else if (type === 'warp') { osc.type = 'triangle'; osc.frequency.setValueAtTime(100, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.5); gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5); osc.start(); osc.stop(audioCtx.currentTime + 0.5); }
+    } catch(e) {}
+}
+
+// Lluvia de Vibe Coins (VFX Gamificación)
+function spawnCoinExplosion() {
+    // Simulamos la llamada a una función visual que puede estar en la vista
+    showToast('💎 ¡Lluvia de Vibe Coins activada!', 'success');
+}
+
 // --- Funciones de Utilidad ---
-function showToast(message) {
+function showToast(message, type = 'info') { // 'info', 'success', 'error'
     const x = document.getElementById("toast");
-    x.innerText = message;
-    x.className = "show";
-    setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
+    if (!x) return; // Safety check
+    // Añade un icono para feedback visual inmediato
+    if (type === 'error') triggerHaptic('error');
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+    x.innerText = `${icon} ${message}`;
+    x.className = `show ${type}`; // e.g., "show success"
+    setTimeout(function(){ 
+        if(x) x.className = x.className.replace("show", ""); 
+    }, 4000); // Un poco más de tiempo
 }
 
 function toggleAuth(view) {
@@ -61,18 +126,27 @@ function toggleAuth(view) {
 }
 
 function checkAuth() {
+    const isAppPage = window.location.pathname.includes('app.html');
+
     if (token) {
+        if (isAppPage) return; // Ya estamos en el Portal, detener redirección en bucle
+
         // Si venimos de loguearnos socialmente, mostrar bienvenida antes de salir de la vista
         if (urlToken && currentUser) {
-            showToast(`¡Bienvenido de nuevo, ${currentUser.username}!`);
+            showToast(`¡Bienvenido de nuevo, ${currentUser.username}!`, 'success');
             setTimeout(() => window.location.href = '/app.html', 1500);
         } else {
             // Redirección directa al Portal Élite
             window.location.href = '/app.html';
         }
     } else {
-        document.getElementById('auth-view').classList.remove('hidden');
-        toggleAuth('login'); // Asegurar que retorne al inicio de sesión
+        if (isAppPage) {
+            window.location.href = '/'; // Proteger el Dashboard si no hay token
+            return;
+        }
+        const authView = document.getElementById('auth-view');
+        if (authView) authView.classList.remove('hidden');
+        toggleAuth('login');
     }
 }
 
@@ -85,7 +159,7 @@ function logout() {
 }
 
 function socialLogin(provider) {
-    showToast(`Conectando con ${provider}...`);
+    showToast(`Redirigiendo a ${provider}...`, 'info');
     // Capturamos el color actual del aura para enviarlo al backend social
     const vibeColor = encodeURIComponent(`hsl(${Math.floor(vibeState.hue)}, 100%, 60%)`);
     // Pequeño delay para feedback visual antes de redirigir
@@ -167,6 +241,7 @@ function checkPasswordStrength() {
 // --- API Calls ---
 
 async function login(e) {
+    triggerHaptic('light');
     e.preventDefault();
     const btn = document.getElementById('login-btn');
     
@@ -177,7 +252,7 @@ async function login(e) {
         
     const password = document.getElementById('login-pass').value;
 
-    if (!identifier || !password) return showToast('Completa todos los campos');
+    if (!identifier || !password) return showToast('Completa todos los campos', 'error');
         
     btn.disabled = true;
     btn.innerText = 'Entrando...';
@@ -185,30 +260,48 @@ async function login(e) {
     try {
         const res = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: JSON.stringify({ identifier, password, vibeColor })
         });
-        const data = await res.json();
+        
+        const textResponse = await res.text();
+        let data;
+        try {
+            data = JSON.parse(textResponse);
+        } catch (parseError) {
+            console.error("❌ El servidor devolvió HTML o texto inválido:", textResponse);
+            throw new Error(`Servidor caído o reiniciándose (HTTP ${res.status})`);
+        }
+
         btn.disabled = false;
         btn.innerText = 'Iniciar Sesión';
         
         if (data.success) {
             handleLoginSuccess(data);
         } else {
-            showToast(data.message || 'Error de credenciales');
+            showToast(data.message || 'Error de credenciales', 'error');
         }
     } catch (err) {
+        console.error("❌ Error real de conexión en Login:", err);
         btn.disabled = false;
-        showToast('Error de conexión');
+        btn.innerText = 'Iniciar Sesión';
+        if (err.message.includes('Failed to fetch')) {
+            showToast('Servidor caído, en reposo o error de CORS.', 'error');
+        } else {
+            showToast(`Error: ${err.message}`);
+        }
     }
 }
 
+// Transición Cinemática de Entrada
 function handleLoginSuccess(data) {
     token = data.token;
     currentUser = data.user;
     localStorage.setItem('vibe_token', token);
     localStorage.setItem('vibe_user', JSON.stringify(currentUser));
-    showToast(`¡Bienvenido, ${currentUser.username}!`);
     
     // Innovación: Bienvenida por voz
     if ('speechSynthesis' in window) {
@@ -217,10 +310,23 @@ function handleLoginSuccess(data) {
         window.speechSynthesis.speak(utterance);
     }
     
+    // Innovación Comercial: Recompensa de "Vibe Coins" al entrar
+    // Asumimos que el usuario recibe monedas por iniciar sesión.
+    const loginBonus = Math.floor(Math.random() * 20) + 10; // Entre 10 y 29 monedas
+    setTimeout(() => {
+        showToast(`Ganaste ${loginBonus} Vibe Coins por tu racha!`, 'success');
+        triggerHaptic('success');
+        playSFX('coin');
+        spawnCoinExplosion();
+    }, 800);
+    
+    if (typeof updateVibeCoinsOnScreen === 'function') updateVibeCoinsOnScreen(loginBonus, true);
+    
     // Generar escudo E2EE transparente en segundo plano
     setupQuantumShield(token);
+    playSFX('warp'); // Sonido de hipervelocidad al entrar
 
-    checkAuth();
+    window.location.href = '/app.html'; // Redirección instantánea sin lag
 }
 
 async function register(e) {
@@ -232,21 +338,26 @@ async function register(e) {
     
     // Pre-validaciones visuales
     if (!username || !birthDate || !gender) {
-        return showToast('❌ Completa todos los campos obligatorios');
+        return showToast('Completa todos los campos obligatorios', 'error');
     }
 
     // Contraseña siempre requerida
     const password = document.getElementById('reg-pass').value;
     const confirm = document.getElementById('reg-pass-confirm').value;
-    if (!password) return showToast('Ingresa una contraseña segura');
-    if (password !== confirm) return showToast('❌ Las contraseñas no coinciden');
+    
+    if (!password || password.length < 8) {
+        return showToast('La contraseña debe tener al menos 8 caracteres', 'error');
+    }
+    const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9])/;
+    if (!strongRegex.test(password)) return showToast('Contraseña débil: Usa mayúsculas, números y símbolos.', 'error');
+    if (password !== confirm) return showToast('Las contraseñas no coinciden', 'error');
 
     // Lógica para Email/Password
     if (currentRegisterMethod === 'email') {
         const email = document.getElementById('reg-email').value;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         
-        if (!email) return showToast('Faltan datos de correo');
+        if (!email) return showToast('Faltan datos de correo', 'error');
         if (!emailRegex.test(email)) {
             return showToast('❌ Ingresa un correo electrónico válido');
         }
@@ -257,23 +368,42 @@ async function register(e) {
         try {
             const res = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({ 
                     username, email, password, birthDate, gender, 
                     genderPreference: 'EVERYONE', vibeColor
                 })
             });
-            const data = await res.json();
+        
+        const textResponse = await res.text();
+        let data;
+        try {
+            data = JSON.parse(textResponse);
+        } catch (parseError) {
+            console.error("❌ Respuesta inválida del servidor:", textResponse);
+            throw new Error(`El servidor devolvió un error (HTTP ${res.status})`);
+        }
+
             btn.disabled = false;
+            btn.innerText = 'Registrarse con Correo';
             if (data.success) {
-                showToast('¡Cuenta creada! Bienvenido.');
+                showToast('¡Cuenta creada! Bienvenido.', 'success');
                 handleLoginSuccess(data);
             } else {
-                showToast(data.message || 'Error en el registro');
+                showToast(data.message || 'Error en el registro', 'error');
             }
         } catch (err) {
+            console.error("❌ Error real de conexión en Registro (Email):", err);
             btn.disabled = false;
-            showToast('Error de conexión');
+            btn.innerText = 'Registrarse con Correo';
+            if (err.message.includes('Failed to fetch')) {
+                showToast('Servidor no responde (CORS o inactivo).', 'error');
+            } else {
+                showToast(`Error: ${err.message}`);
+            }
         }
         return;
     }
@@ -285,18 +415,28 @@ async function register(e) {
     try {
         if (registerStep === 1) {
             // Paso 1: Enviar OTP para verificar número antes de crear cuenta
-            if (!phone) return showToast('Número requerido');
-            if (phone.length < 8) return showToast('❌ Número de teléfono muy corto');
+            if (!phone) return showToast('Número requerido', 'error');
+            if (phone.length < 8) return showToast('Número de teléfono muy corto', 'error');
             
             btn.disabled = true;
             btn.innerText = 'Enviando...';
 
             const res = await fetch(`${API_URL}/auth/register/send-otp`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({ phone })
             });
-            const data = await res.json();
+        
+        const textResponse = await res.text();
+        let data;
+        try { 
+            data = JSON.parse(textResponse); 
+        } catch(e) { 
+            throw new Error(`Error del servidor al enviar SMS (HTTP ${res.status})`); 
+        }
 
             btn.disabled = false;
             if (data.success) {
@@ -304,41 +444,64 @@ async function register(e) {
                 document.getElementById('reg-otp-group').classList.remove('hidden');
                 document.getElementById('reg-phone').disabled = true;
                 btn.innerText = 'Verificar y Unirse';
-                showToast('Código enviado. Revisa tu SMS.');
+                showToast('Código enviado. Revisa tu SMS.', 'success');
             } else {
                 btn.innerText = 'Enviar Código';
-                showToast(data.message || 'Error al enviar');
+                showToast(data.message || 'Error al enviar', 'error');
             }
         } else {
             // Paso 2: Crear cuenta con OTP verificado
+            btn.disabled = true;
+            btn.innerText = 'Verificando...';
+
             const vibeColor = `hsl(${Math.floor(vibeState.hue)}, 100%, 60%)`;
             const res = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({ 
                     username, phone, code: otp, password, birthDate, gender, 
                     genderPreference: 'EVERYONE', vibeColor
                 })
             });
-            const data = await res.json();
+        
+        const textResponse2 = await res.text();
+        let data2;
+        try { 
+            data2 = JSON.parse(textResponse2); 
+        } catch(e) { 
+            throw new Error(`El servidor falló (HTTP ${res.status})`); 
+        }
 
-            if (data.success) {
-                showToast('¡Cuenta creada! Bienvenido.');
-                handleLoginSuccess(data); // Auto login profesional
+            btn.disabled = false;
+            btn.innerText = 'Verificar y Unirse';
+
+            if (data2.success) {
+                showToast('¡Cuenta creada! Bienvenido.', 'success');
+                handleLoginSuccess(data2); // Auto login profesional
             } else {
-                showToast(data.message || 'Error en el registro');
+                showToast(data2.message || 'Error en el registro', 'error');
             }
         }
     } catch (err) {
-        document.getElementById('reg-btn').disabled = false;
-        showToast('Error de conexión');
+        console.error("❌ Error real de conexión en Registro (Teléfono):", err);
+        const regBtn = document.getElementById('reg-btn');
+        regBtn.disabled = false;
+        regBtn.innerText = registerStep === 1 ? 'Enviar Código' : 'Verificar y Unirse';
+        if (err.message.includes('Failed to fetch')) {
+            showToast('Servidor inaccesible. Verifica tu conexión.', 'error');
+        } else {
+            showToast(`Error: ${err.message}`);
+        }
     }
 }
 
 // --- Funciones Innovadoras ---
 
 async function biometricLogin() {
-    showToast("Iniciando escáner biométrico FIDO2...");
+    showToast("Iniciando escáner biométrico...", 'info');
     try {
         // Implementación REAL de WebAuthn (TouchID/FaceID) Nativa del Navegador
         const publicKeyCredentialRequestOptions = {
@@ -353,12 +516,13 @@ async function biometricLogin() {
         });
 
         if (assertion) {
-            showToast("✅ Biometría verificada. Encriptando sesión...");
+            triggerHaptic('success');
+            showToast("Biometría verificada. Entrando...", 'success');
             // Al pasar la huella real, fuerza el flujo de entrada
             setTimeout(checkAuth, 1000); 
         }
     } catch (err) {
-        showToast("❌ Acceso biométrico cancelado o no soportado.");
+        showToast("Acceso biométrico cancelado o no soportado.", 'error');
     }
 }
 
@@ -473,8 +637,47 @@ function analyzeVibe() {
 }
 
 // --- Event Listeners ---
-document.getElementById('login-form').addEventListener('submit', login);
-document.getElementById('register-form').addEventListener('submit', register);
+const loginForm = document.getElementById('login-form');
+if (loginForm) loginForm.addEventListener('submit', login);
+
+const registerForm = document.getElementById('register-form');
+if (registerForm) registerForm.addEventListener('submit', register);
+
+// Innovación Comercial: Validación de Edad en Tiempo Real
+const dobInput = document.getElementById('reg-dob');
+if (dobInput) {
+    // Crear un elemento para mostrar la edad
+    const ageDisplay = document.createElement('span');
+    ageDisplay.id = 'age-display';
+    ageDisplay.style.marginLeft = '10px';
+    ageDisplay.style.fontWeight = 'bold';
+    ageDisplay.style.fontSize = '0.9em';
+    dobInput.parentNode.appendChild(ageDisplay);
+
+    dobInput.addEventListener('input', () => {
+        const birthDate = new Date(dobInput.value);
+        if (isNaN(birthDate.getTime()) || dobInput.value.length < 10) {
+            ageDisplay.textContent = '';
+            return;
+        }
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        
+        if (age < 18) {
+            ageDisplay.textContent = `${age} años. Debes ser mayor de 18.`;
+            ageDisplay.style.color = '#FF4C4C'; // Rojo
+        } else {
+            ageDisplay.textContent = `Genial, ${age} años.`;
+            ageDisplay.style.color = '#00FF80'; // Verde Neón
+        }
+    });
+}
+
+document.body.addEventListener('click', () => triggerHaptic('light')); // Micro-interacción global
 
 // Init
 checkAuth();
@@ -483,7 +686,9 @@ initVibeCheck();
 // --- 3D Background Animation (Vibe Sphere) ---
 function initVibeBackground() {
     const canvas = document.getElementById('vibe-canvas');
-    const ctx = canvas.getContext('2d');
+    if (!canvas) return; // Protección de seguridad: Evita que intente cargar dentro del dashboard
+    const ctx = canvas.getContext('2d', { alpha: false }); // alpha: false mejora radicalmente el rendimiento
+
     let width, height;
     let sphereRadius, focalLength; // Variables dinámicas para evitar distorsión
 
@@ -500,6 +705,7 @@ function initVibeBackground() {
         if (Math.random() < 0.1) buffer32[i] = 0x10ffffff; // Píxeles blancos muy tenues
     }
     noiseCtx.putImageData(idata, 0, 0);
+    const cachedPattern = ctx.createPattern(noiseCanvas, 'repeat'); // Solo crear el patrón UNA vez
 
     
     // Fondo de Estrellas (Profundidad)
@@ -514,30 +720,62 @@ function initVibeBackground() {
     }
     
     // Interacción del Mouse (Campo de Fuerza)
-    let mouseX = window.innerWidth / 2;
-    let mouseY = window.innerHeight / 2;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    let mouseX = (window.innerWidth / 2) * dpr;
+    let mouseY = (window.innerHeight / 2) * dpr;
     let isWarping = false; // Estado para efecto Hipervelocidad
+    let isFormFocused = false; // ¡NUEVO ESTADO! Para interactividad del formulario
+    let targetMouseX = mouseX;
+    let targetMouseY = mouseY;
 
     window.addEventListener('mousemove', e => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
+        dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        targetMouseX = e.clientX * dpr;
+        targetMouseY = e.clientY * dpr;
+    });
+    
+    // INNNOVACIÓN: Paralaje con Giroscopio (Móviles)
+    window.addEventListener('deviceorientation', (e) => {
+        if (!e.gamma || !e.beta) return;
+        dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        // Mapear inclinación a coordenadas de pantalla (sensibilidad ajustada)
+        targetMouseX = (window.innerWidth / 2 + (e.gamma * 15)) * dpr; 
+        targetMouseY = (window.innerHeight / 2 + (e.beta * 15)) * dpr;
     });
     window.addEventListener('mousedown', () => isWarping = true);
     window.addEventListener('mouseup', () => isWarping = false);
 
+    // ¡NUEVO! Conectar con los formularios de login/registro para una experiencia única
+    const inputs = document.querySelectorAll('#auth-view input[type="text"], #auth-view input[type="email"], #auth-view input[type="password"], #auth-view input[type="tel"]');
+    inputs.forEach(input => {
+        input.addEventListener('focus', () => isFormFocused = true);
+        input.addEventListener('blur', () => isFormFocused = false);
+    });
+
     window.addEventListener('resize', resize);
+    let cachedGradient;
     function resize() {
         // Soporte 4K / Retina Display (Ultra HD)
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5); // Aumentar a 2.5x para nitidez extrema (Retina HD)
         canvas.width = window.innerWidth * dpr;
         canvas.height = window.innerHeight * dpr;
+        
+        // ¡NUEVO! Fijar el tamaño CSS para que no se desborde de la pantalla
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+        
         width = canvas.width;
         height = canvas.height;
         
         // Configuración Óptica Profesional
         // Aumentamos la focal para aplanar la perspectiva y evitar distorsión en los bordes
         focalLength = Math.max(width, height) * 2; 
-        sphereRadius = Math.min(width, height) * 0.25; // La esfera ocupa el 25% de la pantalla
+        sphereRadius = Math.min(width, height) * 0.40; // La esfera ocupa el 40% de la pantalla (Más grande)
+        
+        // Caché del degradado en cada resize para no recrearlo por frame
+        cachedGradient = ctx.createRadialGradient(width/2, height/2, height/2, width/2, height/2, height);
+        cachedGradient.addColorStop(0, 'transparent');
+        cachedGradient.addColorStop(1, 'rgba(0,0,0,0.7)');
     }
     resize();
 
@@ -555,7 +793,7 @@ function initVibeBackground() {
             this.baseHue = isText ? 190 : (Math.random() * 40 + 250); 
             // Tamaño ajustado para alta resolución (DPR)
             const dpr = window.devicePixelRatio || 1;
-            this.size = (isText ? 2.5 : (Math.random() * 2 + 0.8)) * dpr;
+            this.size = (isText ? 2.5 : (Math.random() * 2.5 + 1.2)) * dpr; // Puntos más grandes y definidos
         }
 
         project(angleX, angleY, angleZ, transX, transY, transZ) {
@@ -676,12 +914,17 @@ function initVibeBackground() {
     let currentShapeIndex = 0;
 
     function animate() {
+        // Suavizar movimiento del ratón/giroscopio (Lerp)
+        mouseX += (targetMouseX - mouseX) * 0.1;
+        mouseY += (targetMouseY - mouseY) * 0.1;
+
         // Fondo oscuro con estela muy suave (Elegancia)
         ctx.fillStyle = 'rgba(0, 0, 0, 0.25)'; // Fondo negro puro para mayor contraste y evitar saturación
         ctx.fillRect(0, 0, width, height);
         
         // Control de Tiempo: Si es Warp, el tiempo vuela
-        const speed = isWarping ? 0.1 : 0.025;
+        const isHyperWarp = isWarping || window.vibeCinematicWarp;
+        const speed = isHyperWarp ? 0.08 : (isFormFocused ? 0.004 : 0.012); // Velocidad reducida a la mitad (Más elegante)
         time += speed;
         
         const now = Date.now();
@@ -715,14 +958,16 @@ function initVibeBackground() {
         // Movimiento amplio y dinámico por toda la pantalla
         // Si es Warp, centramos la cámara para el efecto túnel
         // Camera Shake: Temblor sutil para realismo
-        const shakeX = (Math.random() - 0.5) * (isWarping ? 5 : 0.5);
-        const shakeY = (Math.random() - 0.5) * (isWarping ? 5 : 0.5);
+        const shakeX = (Math.random() - 0.5) * (isHyperWarp ? 12 : 0.5);
+        const shakeY = (Math.random() - 0.5) * (isHyperWarp ? 12 : 0.5);
 
-        const transX = (isWarping ? 0 : Math.sin(time * 0.5) * (width * 0.35)) + shakeX;
-        const transY = (isWarping ? 0 : Math.cos(time * 0.4) * (height * 0.25)) + shakeY;
-        const transZ = isWarping ? -200 : Math.sin(time * 0.3) * 400; 
+        // ¡MODIFICADO! Si el formulario está en foco, la esfera se centra y se calma.
+        const baseTransX = isHyperWarp ? 0 : (isFormFocused ? 0 : Math.sin(time * 0.5) * (width * 0.35));
+        const baseTransY = isHyperWarp ? 0 : (isFormFocused ? 0 : Math.cos(time * 0.4) * (height * 0.25));
+        const transZ = isHyperWarp ? -300 : (isFormFocused ? 200 : Math.sin(time * 0.3) * 400);
+        const transX = baseTransX + shakeX;
+        const transY = baseTransY + shakeY;
 
-        // Glitch Trigger (Ocasional)
         const isGlitchFrame = Math.random() < 0.04; // 4% de probabilidad por frame
 
         // Dibujar Estrellas de Fondo (Paralaje sutil)
@@ -767,12 +1012,12 @@ function initVibeBackground() {
                 py += (Math.random() - 0.5) * 10; // Ruido vertical
             }
 
-            // Creamos una instancia temporal escalada para proyectar
-            const effectiveP = { ...p, x: px, y: py, z: pz };
-            
-            // Usamos el método del prototipo pero con los valores escalados
-            // (Pequeño hack para no recalcular todo el objeto)
-            const point = p.project.call(effectiveP, angleX, angleY, angleZ, transX, transY, transZ);
+            // OPTIMIZACIÓN GC: Reutilizamos el mismo objeto mutándolo temporalmente
+            // Esto previene que se re-asignen miles de objetos por frame
+            const oldX = p.x, oldY = p.y, oldZ = p.z;
+            p.x = px; p.y = py; p.z = pz;
+            const point = p.project(angleX, angleY, angleZ, transX, transY, transZ);
+            p.x = oldX; p.y = oldY; p.z = oldZ;
             
             // Si el punto está detrás de la cámara o muy lejos, no lo dibujamos
             if (!point) return;
@@ -791,7 +1036,7 @@ function initVibeBackground() {
             }
 
             // Efecto Warp: Estirar partículas si estamos en hipervelocidad
-            if (isWarping) {
+            if (isHyperWarp) {
                 // Estela hacia el centro
                 const cx = width / 2;
                 const cy = height / 2;
@@ -807,7 +1052,7 @@ function initVibeBackground() {
         });
 
         // Dibujar Constelaciones (Líneas entre puntos cercanos)
-        ctx.lineWidth = 0.2;
+        ctx.lineWidth = 0.08; // Líneas mucho más finas y elegantes
         ctx.strokeStyle = 'rgba(138, 43, 226, 0.15)'; // Líneas violetas muy sutiles
         ctx.beginPath();
         
@@ -860,7 +1105,7 @@ function initVibeBackground() {
 
             // 2. Núcleo (Core) - Pequeño y blanco brillante (Hotspot)
             // Si estamos en Warp, desplazamos el canal rojo para Aberración Cromática
-            const aberrationX = isWarping ? (point.x - width/2) * 0.02 : 0;
+            const aberrationX = isHyperWarp ? (point.x - width/2) * 0.03 : 0;
             
             const coreSize = p.size * point.scale * twinkle * 0.8;
             ctx.fillStyle = `hsla(${dynamicHue}, 20%, 95%, ${alpha})`; // Casi blanco
@@ -871,18 +1116,11 @@ function initVibeBackground() {
         
         // Vignette (Viñeta cinematográfica)
         ctx.globalCompositeOperation = 'source-over';
-        const gradient = ctx.createRadialGradient(width/2, height/2, height/2, width/2, height/2, height);
-        gradient.addColorStop(0, 'transparent');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.7)');
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = cachedGradient; // Renderizado O(1)
         ctx.fillRect(0, 0, width, height);
 
         // Film Grain (Ruido de película)
-        ctx.globalCompositeOperation = 'overlay';
-        ctx.fillStyle = ctx.createPattern(noiseCanvas, 'repeat');
-        ctx.globalAlpha = 0.08; // Sutil
-        ctx.fillRect(0, 0, width, height);
-        ctx.globalAlpha = 1.0;
+        // Efecto "Film Grain" eliminado: Causaba aspecto de "pantalla sucia" o baja resolución.
         
         ctx.globalCompositeOperation = 'source-over';
         requestAnimationFrame(animate);

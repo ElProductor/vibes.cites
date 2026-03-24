@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import http from 'http';
+import { Server } from 'socket.io';
 import * as path from 'path'; // Importar path
 import * as fs from 'fs'; // Importar file system para validación
 import { VibeController } from './eventcontroller';
@@ -9,6 +11,18 @@ import { authMiddleware } from './middleware';
 import passport from './passport'; // Importar configuración de Passport
 
 const app = express();
+const server = http.createServer(app);
+
+// --- MOTOR DE WEBSOCKETS EN TIEMPO REAL ---
+const io = new Server(server, { cors: { origin: '*' } });
+io.on('connection', (socket) => {
+    // El usuario se une a una sala con su ID para recibir mensajes privados
+    socket.on('join_user_room', (userId) => socket.join(`user_${userId}`));
+    
+    // Retransmitir evento de "escribiendo..." al receptor
+    socket.on('typing', (data) => io.to(`user_${data.receiverId}`).emit('user_typing', { senderId: data.senderId }));
+});
+
 const port = process.env.PORT || 3000;
 
 app.set('trust proxy', 1); // Confiar en el proxy inverso de Railway
@@ -36,6 +50,7 @@ app.use(express.static(publicPath));
 app.use(passport.initialize()); // Inicializar Passport
 
 const controller = new VibeController();
+controller.setSocketIo(io); // Inyectamos el motor en vivo al controlador
 
 // --- RUTAS ---
 
@@ -118,8 +133,10 @@ app.post('/auth/public-key', authMiddleware, (req, res) => controller.updatePubl
 app.get('/users/:id/profile', authMiddleware, (req, res) => controller.getUserProfile(req, res));
 app.get('/users/:id/badges', authMiddleware, (req, res) => controller.getUserBadges(req, res));
 app.post('/users/photos', authMiddleware, (req, res) => controller.uploadPhoto(req, res));
+app.post('/users/update', authMiddleware, (req, res) => controller.updateProfile(req, res));
 app.post('/users/verify', authMiddleware, (req, res) => controller.verifyIdentity(req, res));
 app.get('/users/:userId/notifications', authMiddleware, (req, res) => controller.getNotifications(req, res));
+app.get('/api/chats/:targetId/messages', authMiddleware, (req, res) => controller.getChatHistory(req, res)); // Historial Real
 
 // Eventos
 app.post('/events/join', authMiddleware, (req, res) => controller.joinEvent(req, res));
@@ -127,6 +144,7 @@ app.post('/events/report', authMiddleware, (req, res) => controller.reportEventB
 
 // Nuevas Rutas de GPS, Partys y Matches
 app.get('/api/parties/radar', authMiddleware, (req, res) => controller.getRadarParties(req, res));
+app.post('/api/events/create', authMiddleware, (req, res) => controller.createRadarEvent(req, res));
 app.get('/api/matches', authMiddleware, (req, res) => controller.getMatches(req, res));
 app.get('/api/live-feed', authMiddleware, (req, res) => controller.getLiveFeed(req, res));
 app.get('/api/stories', authMiddleware, (req, res) => controller.getStories(req, res));
@@ -134,9 +152,21 @@ app.get('/api/metrics', authMiddleware, (req, res) => controller.getMetrics(req,
 app.get('/api/health', (req, res) => controller.healthCheck(req, res));
 app.get('/api/stats', authMiddleware, (req, res) => controller.getStats(req, res));
 app.post('/api/checkout/premium', authMiddleware, (req, res) => controller.processCheckout(req, res));
+app.get('/api/daily-status', authMiddleware, (req, res) => controller.getDailyStatus(req, res));
+app.post('/api/rewards/claim', authMiddleware, (req, res) => controller.claimDailyReward(req, res));
+app.get('/api/chats', authMiddleware, (req, res) => controller.getChatsList(req, res));
+app.post('/api/ai/enhance-profile', authMiddleware, (req, res) => controller.enhanceUserProfile(req, res)); // IA Profile
+app.get('/api/social-feed', authMiddleware, (req, res) => controller.getSocialFeed(req, res));
+app.post('/api/social-feed/post', authMiddleware, (req, res) => controller.createSocialPost(req, res));
+app.post('/api/social-feed/like', authMiddleware, (req, res) => controller.likeSocialPost(req, res));
+app.post('/api/interactions/super-vibe', authMiddleware, (req, res) => controller.sendSuperVibe(req, res));
+app.get('/api/daily-forecast', authMiddleware, (req, res) => controller.getDailyForecast(req, res)); // IA Forecast
 
 // Integraciones
 app.post('/api/integrations/connect', authMiddleware, (req, res) => controller.connectIntegration(req, res));
+app.post('/api/integrations/spotify', authMiddleware, (req, res) => controller.connectSpotify(req, res));
+app.post('/api/integrations/spotify/search', authMiddleware, (req, res) => controller.searchSpotify(req, res));
+app.post('/api/integrations/spotify/signature', authMiddleware, (req, res) => controller.setSignatureSong(req, res));
 
 // Interacción y Chat
 app.post('/interaction/video-consent', authMiddleware, (req, res) => controller.toggleVideoIntent(req, res));
@@ -148,7 +178,33 @@ app.post('/notifications/read', authMiddleware, (req, res) => controller.markNot
 // Leaderboard
 app.get('/leaderboard', (req, res) => controller.getLeaderboard(req, res));
 
-const server = app.listen(port, () => {
+// --- RUTAS DE ADMINISTRACIÓN ---
+const adminMiddleware = (req: any, res: any, next: any) => {
+    // La contraseña por defecto es "vibe_admin_123" si no configuras ADMIN_SECRET en .env
+    const key = req.headers['x-admin-key'];
+    if (key === (process.env.ADMIN_SECRET || 'vibe_admin_123')) {
+        next();
+    } else {
+        res.status(403).json({ success: false, message: 'Acceso Denegado. Clave incorrecta.' });
+    }
+};
+
+app.get('/admin', (req, res) => {
+    const adminPath = path.join(publicPath, 'admin.html');
+    res.sendFile(adminPath);
+});
+
+app.get('/api/admin/users', adminMiddleware, (req, res) => controller.adminGetUsers(req, res));
+app.put('/api/admin/users/:id', adminMiddleware, (req, res) => controller.adminUpdateUser(req, res));
+app.delete('/api/admin/users/:id', adminMiddleware, (req, res) => controller.adminDeleteUser(req, res));
+app.get('/api/admin/stats', adminMiddleware, (req, res) => controller.adminGetStats(req, res));
+app.post('/api/admin/users', adminMiddleware, (req, res) => controller.adminCreateUser(req, res));
+app.post('/api/admin/users/:id/reset-password', adminMiddleware, (req, res) => controller.adminResetPassword(req, res));
+app.get('/api/admin/events', adminMiddleware, (req, res) => controller.adminGetEvents(req, res));
+app.delete('/api/admin/events/:id', adminMiddleware, (req, res) => controller.adminDeleteEvent(req, res));
+app.post('/api/admin/app-broadcast', authMiddleware, (req, res) => controller.appBroadcast(req, res));
+
+server.listen(port, () => {
   let domain = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${port}`;
   domain = domain.replace(/^https?:\/\//, '');
   const protocol = domain.includes('localhost') ? 'http' : 'https';
@@ -156,6 +212,7 @@ const server = app.listen(port, () => {
   console.log(`🚀 VIBE Server listo en: http://localhost:${port}`);
   console.log(`👉 Callback Google: ${protocol}://${domain}/auth/google/callback`);
   console.log(`👉 Callback Facebook: ${protocol}://${domain}/auth/facebook/callback`);
+  console.log(`🔌 Motor WebSocket (Tiempo Real) Activado`);
 });
 
 server.on('error', (error: any) => {

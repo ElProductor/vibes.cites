@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIBE - Admin Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-6 font-sans">
+    
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">VIBE MASTER ADMIN</h1>
+            <button onclick="logoutAdmin()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-bold transition">Cerrar Sesión</button>
+        </div>
+
+        <!-- ESTADÍSTICAS GLOBALES -->
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg text-center flex flex-col justify-center">
+                <h3 class="text-gray-400 text-sm font-bold uppercase tracking-widest">Usuarios Totales</h3>
+                <p id="stat-users" class="text-5xl font-black text-purple-400 mt-2">-</p>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg text-center flex flex-col justify-center">
+                <h3 class="text-gray-400 text-sm font-bold uppercase tracking-widest">Eventos Activos</h3>
+                <p id="stat-events" class="text-5xl font-black text-pink-400 mt-2">-</p>
+            </div>
+        </div>
+
+        <!-- PESTAÑAS -->
+        <div class="flex gap-4 mb-4 border-b border-gray-700 pb-4">
+            <button onclick="switchTab('users')" id="tab-users" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition">Usuarios</button>
+            <button onclick="switchTab('events')" id="tab-events" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2 rounded-lg font-bold transition">Eventos</button>
+        </div>
+
+        <!-- SECCIÓN: USUARIOS -->
+        <div id="sec-users" class="bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
+            <div class="p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="font-bold text-gray-300">Base de Datos de Usuarios</h2>
+                <button onclick="document.getElementById('modal-create-user').classList.remove('hidden')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded shadow transition text-sm font-bold">+ Nuevo Usuario</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-800 text-gray-400 text-sm uppercase tracking-wider">
+                            <th class="p-4 border-b border-gray-700">Username</th>
+                            <th class="p-4 border-b border-gray-700">Contacto</th>
+                            <th class="p-4 border-b border-gray-700">Score</th>
+                            <th class="p-4 border-b border-gray-700">Estado</th>
+                            <th class="p-4 border-b border-gray-700 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table" class="text-sm">
+                        <tr><td colspan="5" class="p-8 text-center text-gray-500">Autenticando e inicializando consola...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTENTICACIÓN ADMIN SIMPLE ---
+        let adminKey = localStorage.getItem('vibe_admin_key');
+        if (!adminKey) {
+            adminKey = prompt('ACCESO RESTRINGIDO.\nIngresa la Master Key de Servidor (Ej: vibe_admin_123):');
+            if (adminKey) localStorage.setItem('vibe_admin_key', adminKey);
+            else document.body.innerHTML = '<h1 class="text-center text-red-500 mt-20">Acceso Cancelado</h1>';
+        }
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey
+        };
+
+        // --- PESTAÑAS ---
+        function switchTab(tab) {
+            document.getElementById('sec-users').classList.add('hidden');
+            document.getElementById('sec-events').classList.add('hidden');
+            document.getElementById('tab-users').className = 'bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2 rounded-lg font-bold transition';
+            document.getElementById('tab-events').className = 'bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2 rounded-lg font-bold transition';
+            
+            document.getElementById(`sec-${tab}`).classList.remove('hidden');
+            if (tab === 'users') {
+                document.getElementById('tab-users').className = 'bg-purple-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition';
+                loadUsers();
+            } else {
+                document.getElementById('tab-events').className = 'bg-pink-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg transition';
+                loadEvents();
+            }
+        }
+
+        // --- CARGAR DATOS ---
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats', { headers });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('stat-users').innerText = data.stats.users;
+                    document.getElementById('stat-events').innerText = data.stats.events;
+                }
+            } catch(e) {}
+        }
+
+        // --- CARGAR USUARIOS ---
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/admin/users', { headers });
+                const data = await res.json();
+
+                if (!data.success) {
+                    if (res.status === 403) {
+                        alert("Clave incorrecta.");
+                        localStorage.removeItem('vibe_admin_key');
+                        window.location.reload();
+                    }
+                    throw new Error(data.message || 'Error de red');
+                }
+
+                const tbody = document.getElementById('users-table');
+                tbody.innerHTML = data.users.map(u => `
+                    <tr class="hover:bg-gray-700/50 transition border-b border-gray-700/50">
+                        <td class="p-4 font-bold text-purple-300">
+                            <input type="text" id="username-${u.id}" value="${u.username}" class="bg-gray-900 border border-gray-600 rounded px-2 py-1 w-full text-white">
+                        </td>
+                        <td class="p-4 text-gray-400 text-xs">
+                            ${u.email || ''}<br>${u.phone || 'Sin teléfono'}
+                        </td>
+                        <td class="p-4">
+                            <input type="number" id="score-${u.id}" value="${u.vibe_score}" class="bg-gray-900 border border-gray-600 rounded px-2 py-1 w-20 text-yellow-400 font-bold">
+                        </td>
+                        <td class="p-4">
+                            <label class="flex items-center gap-2 text-xs mb-1">
+                                <input type="checkbox" id="verif-${u.id}" ${u.is_verified ? 'checked' : ''}> Verificado (+18)
+                            </label>
+                            <label class="flex items-center gap-2 text-xs text-red-400">
+                                <input type="checkbox" id="block-${u.id}" ${u.is_blocked ? 'checked' : ''}> Bloqueado
+                            </label>
+                        </td>
+                        <td class="p-4 text-right space-x-2">
+                            <button onclick="saveUser('${u.id}')" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded shadow transition text-xs">Guardar</button>
+                            <button onclick="deleteUser('${u.id}')" class="bg-red-900 hover:bg-red-600 text-white px-3 py-1 rounded shadow transition text-xs">Borrar</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                document.getElementById('users-table').innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500">Fallo de conexión: ${err.message}</td></tr>`;
+            }
+        }
+
+        // --- ACCIONES ---
+        async function saveUser(id) {
+            const username = document.getElementById(`username-${id}`).value;
+            const vibe_score = parseInt(document.getElementById(`score-${id}`).value);
+            const is_verified = document.getElementById(`verif-${id}`).checked;
+            const is_blocked = document.getElementById(`block-${id}`).checked;
+
+            const res = await fetch(`/api/admin/users/${id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ username, vibe_score, is_verified, is_blocked })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (data.success) loadUsers();
+        }
+
+        async function deleteUser(id) {
+            if(!confirm("⚠️ ADVERTENCIA: ¿Estás completamente seguro de borrar a este usuario y todo su historial? Esto no se puede deshacer.")) return;
+            
+            const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers });
+            const data = await res.json();
+            alert(data.message);
+            if (data.success) loadUsers();
+        }
+
+        function logoutAdmin() {
+            localStorage.removeItem('vibe_admin_key');
+            window.location.reload();
+        }
+
+        loadStats();
+        loadUsers();
+    </script>
+</body>
+</html>
