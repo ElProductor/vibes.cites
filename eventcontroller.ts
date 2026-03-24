@@ -557,6 +557,63 @@ export class VibeController {
     }
   }
 
+  // --- MONETIZACIÓN: MERCADO PAGO (SANDBOX) ---
+  async processMercadoPagoCheckout(req: any, res: any) {
+    const userId = req.user?.id;
+    const { plan, eventId } = req.body;
+    
+    try {
+        const mpAccessToken = process.env.MP_ACCESS_TOKEN || 'TEST-tu_token_de_prueba';
+        
+        const preference = {
+            items: [{
+                title: plan === 'VIBE_PLUS' ? 'Pase VIBE+ VIP' : 'Vibe Pass - Entrada a Evento',
+                unit_price: plan === 'VIBE_PLUS' ? 9990 : 5000, // Precios en Pesos Chilenos (CLP)
+                quantity: 1,
+                currency_id: 'CLP'
+            }],
+            external_reference: `${userId}_${eventId || 'VIBE_PLUS'}`, // Clave vital para que el Webhook sepa quién pagó
+            back_urls: {
+                success: `${process.env.PUBLIC_URL || 'http://localhost:3000'}/app.html?payment=success`,
+                failure: `${process.env.PUBLIC_URL || 'http://localhost:3000'}/app.html?payment=failure`,
+                pending: `${process.env.PUBLIC_URL || 'http://localhost:3000'}/app.html?payment=pending`
+            },
+            auto_return: 'approved',
+            notification_url: `${process.env.PUBLIC_URL || 'https://tu-dominio.com'}/api/webhooks/mercadopago`
+        };
+
+        const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${mpAccessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(preference)
+        });
+
+        const data = await response.json();
+        res.json({ success: true, init_point: data.sandbox_init_point || data.init_point });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: 'Error con Mercado Pago.' });
+    }
+  }
+
+  // Webhook: Mercado Pago avisa automáticamente en segundo plano cuando el usuario paga
+  async mercadoPagoWebhook(req: any, res: any) {
+    const { type, data } = req.query.type ? req.query : req.body;
+    if (type === 'payment' || (req.body.action === 'payment.created')) {
+        const paymentId = data?.id || req.body.data?.id;
+        try {
+            const mpAccessToken = process.env.MP_ACCESS_TOKEN || 'TEST-tu_token_de_prueba';
+            const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, { headers: { 'Authorization': `Bearer ${mpAccessToken}` } });
+            const paymentInfo = await paymentRes.json();
+            if (paymentInfo.status === 'approved' && paymentInfo.external_reference) {
+                const [userId, eventId] = paymentInfo.external_reference.split('_');
+                if (eventId === 'VIBE_PLUS') { await db.query(`UPDATE users SET vibe_score = vibe_score + 1000 WHERE id = $1`, [userId]); await notificationService.notifyUser(userId, 'SYSTEM', '💎 VIBE+', 'Tu pase premium se ha activado.'); }
+                else { await db.query(`INSERT INTO event_attendees (event_id, user_id) VALUES ($1, $2)`, [eventId, userId]); await notificationService.notifyUser(userId, 'SYSTEM', '🎫 ENTRADA LIBERADA', 'Pago confirmado. Tu QR ya está activo.'); }
+            }
+        } catch (e) { console.error('Error Webhook MP:', e); }
+    }
+    res.status(200).send('OK'); // Liberar el webhook rápido (Obligatorio por MP)
+  }
+
   // --- RED SOCIAL E INTEGRACIONES ---
   async connectSpotify(req: any, res: any) {
     const userId = req.user?.id;

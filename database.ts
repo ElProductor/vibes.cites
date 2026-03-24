@@ -12,7 +12,12 @@ export class LocalDB {
 
   constructor() {
     if (process.env.DATABASE_URL) {
-      this.pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      this.pool = new Pool({ 
+        connectionString: process.env.DATABASE_URL,
+        max: 20, // Limita las conexiones simultáneas para no saturar el plan gratuito de Supabase
+        idleTimeoutMillis: 30000, // Cierra conexiones inactivas después de 30s
+        connectionTimeoutMillis: 2000 // Falla rápido si no puede conectar en 2s
+      });
       this.init();
     } else {
       // Mantenemos SQLite como fallback de desarrollo
