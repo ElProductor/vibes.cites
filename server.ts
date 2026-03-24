@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import bodyParser from 'body-parser';
+import cors from 'cors';
 import * as path from 'path'; // Importar path
 import * as fs from 'fs'; // Importar file system para validación
 import { VibeController } from './eventcontroller';
@@ -11,6 +12,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.set('trust proxy', 1); // Confiar en el proxy inverso de Railway
+
+// --- CONFIGURACIÓN DE CORS (VITAL PARA MÓVILES Y WEB) ---
+app.use(cors({
+    origin: '*', // Permite peticiones desde cualquier origen (Capacitor usa localhost)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 
 app.use(bodyParser.json());
 
