@@ -162,4 +162,32 @@ export class VibeMatchingEngine {
 
     return guestList;
   }
+
+  /**
+   * LÓGICA DE "VIBE CHECK" (Matching Contextual)
+   * Solo evalúa a los usuarios que ya confirmaron asistencia a un mismo evento.
+   * Aumenta drásticamente la tasa de éxito al asegurar contexto e intención compartida.
+   */
+  public findContextualMatches(targetUser: User, event: Event, eventAttendees: User[]): { user: User, matchScore: number }[] {
+    // 1. Descartar al propio usuario del pool
+    const pool = eventAttendees.filter(u => u.id !== targetUser.id);
+    
+    const matches = pool
+      // 2. Filtro estricto: Si chocan en "No Negociables" (Homofilia), se descartan inmediatamente
+      .filter(candidate => this.isCompatible(targetUser, candidate)) 
+      .map(candidate => {
+        // 3. Puntuación dinámica basada en la afinidad por el evento y sinergia general
+        const eventAffinity = this.calculateEventAffinity(candidate, event);
+        const zodiacSynergy = this.getZodiacScore(targetUser.zodiacSign || '', candidate.zodiacSign || '');
+        
+        return {
+          user: candidate,
+          matchScore: eventAffinity + zodiacSynergy
+        };
+      })
+      .filter(match => match.matchScore > 20) // Umbral mínimo de "Vibe" para mostrar en la UI
+      .sort((a, b) => b.matchScore - a.matchScore); // Top matches primero
+      
+    return matches;
+  }
 }

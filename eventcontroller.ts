@@ -9,6 +9,7 @@ import { NotificationService } from './notificationService'; // Nuevo
 import { db } from './database';
 import { vibeAI } from './vibeAI'; // Importar nuestra nueva IA Cuántica
 import Stripe from 'stripe'; // Integración de pagos real
+import { VibePassService } from './vibePassService';
 import * as crypto from 'crypto';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', { apiVersion: '2023-10-16' as any });
@@ -208,6 +209,16 @@ export class VibeController {
     } catch (e) {
       res.status(500).json({ success: false, message: "Error actualizando reputación." });
     }
+  }
+
+  // Endpoint: POST /api/vibepass
+  async generateVibePass(req: any, res: any) {
+    const userId = req.user?.id;
+    const { eventId } = req.body;
+    if (!userId || !eventId) return res.status(400).json({ success: false, message: 'Faltan parámetros.' });
+    
+    const token = VibePassService.generateSecureQRPayload(userId, eventId);
+    res.json({ success: true, token });
   }
 
   // --- GPS Y PARTYS EN TIEMPO REAL ---

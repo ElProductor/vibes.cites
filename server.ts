@@ -143,6 +143,7 @@ app.post('/events/join', authMiddleware, (req, res) => controller.joinEvent(req,
 app.post('/events/report', authMiddleware, (req, res) => controller.reportEventBehavior(req, res));
 
 // Nuevas Rutas de GPS, Partys y Matches
+app.post('/api/vibepass', authMiddleware, (req, res) => controller.generateVibePass(req, res));
 app.get('/api/parties/radar', authMiddleware, (req, res) => controller.getRadarParties(req, res));
 app.post('/api/events/create', authMiddleware, (req, res) => controller.createRadarEvent(req, res));
 app.get('/api/matches', authMiddleware, (req, res) => controller.getMatches(req, res));
