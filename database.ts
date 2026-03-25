@@ -60,13 +60,6 @@ export class LocalDB {
   async initPostgres() {
     if (!this.pool) return;
     try {
-      // Carga el esquema correcto para SQLite. Asume que has renombrado 'schema.sql' a 'schema.sqlite.sql'
-      let schemaPath = path.join(__dirname, '..', 'schema.sqlite.sql'); // Para cuando se ejecuta desde la carpeta 'dist'
-      if (!fs.existsSync(schemaPath)) {
-        schemaPath = path.join(__dirname, 'schema.sqlite.sql'); // Para cuando se ejecuta desde la raíz (ts-node)
-      }
-      if (!fs.existsSync(schemaPath)) return console.error('❌ FATAL: No se encontró el archivo schema.sqlite.sql. Asegúrate de renombrarlo y subirlo.');
-      const schema = fs.readFileSync(schemaPath, 'utf8');
       await this.runSchema(path.join(__dirname, '..', 'schema.postgres.sql'), (schema) => this.pool!.query(schema));
       console.log("✅ Esquema de PostgreSQL aplicado.");
 
