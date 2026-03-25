@@ -22,10 +22,7 @@
     "socket.io": "^4.8.3",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
-    "stripe": "^20.4.1"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^8.2.0",
+    "stripe": "^20.4.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/node": "^20.12.7",
@@ -33,7 +30,10 @@
     "@types/passport-facebook": "^3.0.3",
     "@types/passport-google-oauth20": "^2.0.14",
     "@types/pg": "^8.20.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.2.0",
+    "ts-node": "^10.9.2"
   }
 }
