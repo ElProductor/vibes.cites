@@ -9,31 +9,43 @@ import * as path from 'path';
 export class LocalDB {
   private pool?: Pool;
   private localDbPromise?: Promise<Database>;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    if (process.env.DATABASE_URL) {
-      this.pool = new Pool({ 
-        connectionString: process.env.DATABASE_URL, // Esta URL será la de tu DB de Supabase
-        max: 20, // Limita las conexiones simultáneas para no saturar el plan gratuito de Supabase
-        idleTimeoutMillis: 30000, // Cierra conexiones inactivas después de 30s
-        connectionTimeoutMillis: 2000 // Falla rápido si no puede conectar en 2s
-      });
-      this.init();
-    } else {
-      // Mantenemos SQLite como fallback de desarrollo
-      const connection = open({
-        filename: './vibe.db',
-        driver: sqlite3.Database
-      });
-      this.localDbPromise = connection.then(async (db) => {
-        try {
-          await this.initSqlite(db); // Llama a la función específica de SQLite
-        } catch (e) {
-          console.error("❌ Error crítico inicializando DB:", e);
-        }
-        return db;
-      });
+    // El constructor se mantiene ligero. La inicialización se maneja explícitamente.
+  }
+
+  public initialize(): Promise<void> {
+    if (!this.initializationPromise) {
+      this.initializationPromise = this._initialize();
     }
+    return this.initializationPromise;
+  }
+
+  private async _initialize(): Promise<void> {
+     if (process.env.DATABASE_URL) {
+       this.pool = new Pool({ 
+         connectionString: process.env.DATABASE_URL,
+         max: 20,
+         idleTimeoutMillis: 30000,
+         connectionTimeoutMillis: 2000
+       });
+       await this.init(); // Esperamos a que la inicialización de Postgres termine
+     } else {
+       const connection = open({
+         filename: './vibe.db',
+         driver: sqlite3.Database
+       });
+       this.localDbPromise = connection.then(async (db) => {
+         try {
+           await this.initSqlite(db);
+         } catch (e) {
+           console.error("❌ Error crítico inicializando DB:", e);
+         }
+         return db;
+       });
+       await this.localDbPromise; // Esperamos a que la inicialización de SQLite termine
+     }
   }
 
   async init() {

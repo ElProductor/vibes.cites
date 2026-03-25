@@ -6,6 +6,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import * as path from 'path'; // Importar path
 import * as fs from 'fs'; // Importar file system para validación
+import { db } from './database'; // Importar la instancia de la DB
 import { VibeController } from './eventcontroller';
 import { authMiddleware } from './middleware';
 import passport from './passport'; // Importar configuración de Passport
@@ -208,20 +209,26 @@ app.get('/api/admin/events', adminMiddleware, (req, res) => controller.adminGetE
 app.delete('/api/admin/events/:id', adminMiddleware, (req, res) => controller.adminDeleteEvent(req, res));
 app.post('/api/admin/app-broadcast', authMiddleware, (req, res) => controller.appBroadcast(req, res));
 
-server.listen(port, () => {
-  let domain = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${port}`;
-  domain = domain.replace(/^https?:\/\//, '');
-  const protocol = domain.includes('localhost') ? 'http' : 'https';
-
-  console.log(`🚀 VIBE Server listo en: http://localhost:${port}`);
-  console.log(`👉 Callback Google: ${protocol}://${domain}/auth/google/callback`);
-  console.log(`👉 Callback Facebook: ${protocol}://${domain}/auth/facebook/callback`);
-  console.log(`🔌 Motor WebSocket (Tiempo Real) Activado`);
-});
-
-server.on('error', (error: any) => {
+const startServer = async () => {
+  await db.initialize(); // Asegurarse de que la DB esté lista ANTES de arrancar el servidor
+  
+  server.listen(port, () => {
+    let domain = process.env.PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${port}`;
+    domain = domain.replace(/^https?:\/\//, '');
+    const protocol = domain.includes('localhost') ? 'http' : 'https';
+  
+    console.log(`🚀 VIBE Server listo en: http://localhost:${port}`);
+    console.log(`👉 Callback Google: ${protocol}://${domain}/auth/google/callback`);
+    console.log(`👉 Callback Facebook: ${protocol}://${domain}/auth/facebook/callback`);
+    console.log(`🔌 Motor WebSocket (Tiempo Real) Activado`);
+  });
+  
+  server.on('error', (error: any) => {
     console.error("❌ Error fatal al iniciar el servidor:", error);
     if (error.code === 'EADDRINUSE') {
         console.error(`   -> El puerto ${port} está ocupado. Cierra otros procesos de node.`);
     }
-});
+  });
+};
+
+startServer();
