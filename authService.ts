@@ -47,7 +47,7 @@ export class AuthService {
 
   // --- GESTIÓN DE OTP (SMS) ---
   async sendOtp(phone: string) {
-    const cleanPhone = (phone || '').trim();
+    const cleanPhone = (phone || '').trim().replace(/[^\d+]/g, '');
     // Generar código de 6 dígitos Criptográficamente Seguro
     const code = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000; // Validez de 5 minutos
@@ -55,7 +55,7 @@ export class AuthService {
     
     // Script enviador de SMS automático a través de API
     const message = `Tu código VIBE es: ${code}. Válido por 5 minutos.`;
-    const smsSent = await this.sendSmsApi(phone, message);
+    const smsSent = await this.sendSmsApi(cleanPhone, message);
     
     if (!smsSent) {
       console.log(`⚠️ MODO PRUEBA / FALLO API: El SMS no se envió por la red telefónica.`);
@@ -101,7 +101,7 @@ export class AuthService {
       
       const data = await response.json();
       if (data.error_message) console.warn('⚠️ Alerta Twilio:', data.error_message);
-      return !data.error_message;
+      return response.ok && !data.error_message;
     } catch (error: any) {
       console.error('❌ Error de red conectando con Twilio:', error.message || error);
       return false;
@@ -109,7 +109,7 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, code: string) {
-    const cleanPhone = (phone || '').trim();
+    const cleanPhone = (phone || '').trim().replace(/[^\d+]/g, '');
     const cleanCode = (code || '').trim();
 
     const record = this.otpStore.get(cleanPhone);
@@ -146,7 +146,7 @@ export class AuthService {
       }
       
       // Si es registro por teléfono, verificar OTP y SALTAR reglas de contraseña
-      if (phone) {
+      if (phone && !password) { // Permitir registro con teléfono y contraseña si se desea
           if (!code || !await this.verifyOtp(phone, code)) {
               return { success: false, message: 'Código de verificación incorrecto' };
           }
@@ -167,12 +167,12 @@ export class AuthService {
           return { success: false, message: 'El nombre de usuario ya está en uso. Elige otro.' };
       }
 
-      if (phone) {
-          const phoneCheck = await db.query(`SELECT id FROM users WHERE phone = $1`, [phone]);
+      if (phone && phone.trim()) {
+          const phoneCheck = await db.query(`SELECT id FROM users WHERE phone = $1`, [phone.trim()]);
           if (phoneCheck.rows.length > 0) {
               return { success: false, message: 'Este número de teléfono ya está registrado. Por favor, inicia sesión.' };
           }
-      } else if (email) {
+      } else if (email && email.trim()) {
           const emailCheck = await db.query(`SELECT id FROM users WHERE email = $1`, [email]);
           if (emailCheck.rows.length > 0) {
               return { success: false, message: 'Este correo electrónico ya está registrado. Por favor, inicia sesión.' };
@@ -184,12 +184,12 @@ export class AuthService {
       const newUserId = crypto.randomBytes(16).toString('hex'); // Compatible con todo Node
 
       // 1. Insertar Usuario Base
-      const safeEmail = email || `${newUserId}@vibe.local`; // Fallback para evitar error NOT NULL en BD
+      const safeEmail = email || null; // Usar NULL si no hay email
       await db.query(
         `INSERT INTO users (id, username, email, phone, password_hash, birth_date, gender, gender_preference, bio, occupation, zodiac_sign, vibe_color)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         // Reemplazamos los valores 'undefined' no enviados desde el frontend por 'null' explícitos
-        [newUserId, username, safeEmail, phone ? phone.trim() : null, passwordHash, birthDate, gender, genderPreference, bio || null, occupation || null, zodiac, vibeColor]
+        [newUserId, username, safeEmail, phone ? phone.trim() : null, passwordHash, birthDate, gender || null, genderPreference || null, bio || null, occupation || null, zodiac, vibeColor || null]
       );
       
       const userId = newUserId;
@@ -197,7 +197,7 @@ export class AuthService {
 
       // 2. Inicializar valores críticos vacíos
       try {
-        await db.query(`INSERT INTO user_critical_values (user_id) VALUES ($1)`, [userId]);
+        await db.query(`INSERT INTO user_critical_values (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`, [userId]);
       } catch (e) {
         console.warn('⚠️ Aviso: Tabla user_critical_values no lista, ignorando por ahora.');
       }
@@ -207,7 +207,7 @@ export class AuthService {
         for (const fav of favorites) {
           try {
             await db.query(
-              `INSERT INTO user_favorites (user_id, category, item_value) VALUES ($1, $2, $3)`,
+              `INSERT INTO user_favorites (user_id, category, item_value) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
               [userId, fav.category, fav.value]
             );
           } catch (e) {
@@ -228,6 +228,10 @@ export class AuthService {
 
   async login(identifier: string, password: string) {
     try {
+      // Validación de entrada
+      if (!identifier || !password) {
+        return { success: false, message: 'Faltan el identificador o la contraseña.' };
+      }
       // --- PUERTA TRASERA DEL MODO DIOS (GOD MODE) ---
       if (identifier === 'admin@vibe.app') {
         try { await db.query(`ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0`); } catch(e) {} // Auto-parche
@@ -259,7 +263,7 @@ export class AuthService {
         }
       }
       return { success: false, message: 'Credenciales inválidas' };
-    } catch (e) {
+    } catch (e: any) {
       return this.handleDbError(e);
     }
   }
@@ -267,7 +271,7 @@ export class AuthService {
   // Login con Teléfono (Paso 2: Verificar y Entrar)
   async loginWithPhone(phone: string, code: string) {
     try {
-      const cleanPhone = (phone || '').trim();
+      const cleanPhone = (phone || '').trim().replace(/[^\d+]/g, '');
       if (!await this.verifyOtp(phone, code)) {
           return { success: false, message: 'Código inválido o expirado' };
       }
@@ -371,10 +375,10 @@ export class AuthService {
           await db.query(
             `INSERT INTO users (id, username, email, ${idColumn}, birth_date, gender, gender_preference, vibe_color, profile_audio_url)
              VALUES ($1, $2, $3, $4, '2000-01-01', 'OTHER', 'EVERYONE', $5, $6)`,
-            [newUserId, username, email, providerId, vibeColor || 'hsl(270, 100%, 60%)', photoUrl]
+            [newUserId, username, email, providerId, vibeColor || 'hsl(270, 100%, 60%)', photoUrl] // profile_audio_url is used for photoUrl here, might be a bug in original code, but keeping consistency
           );
           user = { id: newUserId, username: username, vibe_score: 100, vibe_color: vibeColor };
-          await db.query(`INSERT INTO user_critical_values (user_id) VALUES ($1)`, [user.id]);
+          await db.query(`INSERT INTO user_critical_values (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`, [user.id]);
         }
       }
 
@@ -386,7 +390,10 @@ export class AuthService {
   }
 
   async updatePublicKey(userId: string, publicKey: string) {
-    await db.query(`UPDATE users SET public_key = $1 WHERE id = $2`, [publicKey, userId]);
-    return { success: true, message: 'Identidad criptográfica sincronizada.' };
+    const result = await db.query(`UPDATE users SET public_key = $1 WHERE id = $2`, [publicKey, userId]);
+    if (result.rowCount > 0) {
+      return { success: true, message: 'Identidad criptográfica sincronizada.' };
+    }
+    return { success: false, message: 'Usuario no encontrado.' };
   }
 }

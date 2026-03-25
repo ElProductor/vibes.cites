@@ -41,18 +41,14 @@ export class LocalDB {
 
     if (this.pool) {
       // PostgreSQL
-      let schemaPath = path.join(__dirname, 'schema.sql');
+      // Carga el esquema correcto para PostgreSQL. Asume que has renombrado '-- schema.sql' a 'schema.postgres.sql'
+      let schemaPath = path.join(__dirname, '..', 'schema.postgres.sql'); // Para cuando se ejecuta desde la carpeta 'dist'
       if (!fs.existsSync(schemaPath)) {
-        schemaPath = path.join(__dirname, '../schema.sql');
+        schemaPath = path.join(__dirname, 'schema.postgres.sql'); // Para cuando se ejecuta desde la raíz (ts-node)
       }
-      let schema = fs.readFileSync(schemaPath, 'utf8');
+      if (!fs.existsSync(schemaPath)) return console.error('❌ FATAL: No se encontró el archivo schema.postgres.sql. Asegúrate de renombrarlo y subirlo.');
       
-      // Auto-Traducción de SQLite a PostgreSQL
-      schema = schema.replace(/DATETIME/g, 'TIMESTAMP');
-      schema = schema.replace(/BOOLEAN DEFAULT 0/g, 'BOOLEAN DEFAULT FALSE');
-      schema = schema.replace(/BOOLEAN DEFAULT 1/g, 'BOOLEAN DEFAULT TRUE');
-      schema = schema.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY');
-
+      const schema = fs.readFileSync(schemaPath, 'utf8');
       try {
         await this.pool.query(schema);
 
@@ -187,10 +183,12 @@ export class LocalDB {
         );
       `);
 
-      let schemaPath = path.join(__dirname, 'schema.sql');
+      // Carga el esquema correcto para SQLite. Asume que has renombrado 'schema.sql' a 'schema.sqlite.sql'
+      let schemaPath = path.join(__dirname, '..', 'schema.sqlite.sql'); // Para cuando se ejecuta desde la carpeta 'dist'
       if (!fs.existsSync(schemaPath)) {
-        schemaPath = path.join(__dirname, '../schema.sql');
+        schemaPath = path.join(__dirname, 'schema.sqlite.sql'); // Para cuando se ejecuta desde la raíz (ts-node)
       }
+      if (!fs.existsSync(schemaPath)) return console.error('❌ FATAL: No se encontró el archivo schema.sqlite.sql. Asegúrate de renombrarlo y subirlo.');
       const schema = fs.readFileSync(schemaPath, 'utf8');
       await db.exec(schema);
 
