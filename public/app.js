@@ -19,8 +19,8 @@ if (isAndroid) {
     }
 }
 
-// ☁️ Descomentar para Producción en Railway:
-// API_URL = 'https://vibescites-production-3f34.up.railway.app';
+// ☁️ Configuración forzada para Producción en Railway:
+API_URL = 'https://vibescites-production-3f34.up.railway.app';
 
 console.log(`🌍 Entorno detectado: ${isNativeApp ? (isAndroid ? 'App Android' : 'App iOS') : (isPCWeb ? 'Web PC' : 'Web Móvil')}`);
 console.log(`🔌 Conectando al Backend en: ${API_URL}`);
