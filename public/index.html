@@ -100,7 +100,32 @@
         </div>
     </div>
 
+    <!-- PANEL DE CÁMARA PROFESIONAL (Oculto por defecto) -->
+    <div id="camera-modal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+        <div class="bg-gray-900 p-4 rounded-2xl shadow-lg text-center w-full max-w-md mx-4">
+            <h3 class="text-white font-bold text-lg mb-3">Actualizar Foto de Perfil</h3>
+            <!-- El stream de la cámara se dibujará aquí -->
+            <canvas id="camera-canvas" class="w-full rounded-lg aspect-square object-cover"></canvas>
+            <video id="camera-video" autoplay playsinline class="hidden"></video>
+
+            <div class="my-4">
+                <label class="text-gray-400 text-sm">Filtro de Aura:</label>
+                <select id="filter-select" class="bg-gray-800 text-white rounded-md p-2 w-full mt-1">
+                    <option value="none">Normal</option>
+                    <option value="grayscale(100%)">Noir</option>
+                    <option value="sepia(100%)">Vintage</option>
+                    <option value="hue-rotate(90deg)">Psicodélico</option>
+                    <option value="contrast(200%)">Neón</option>
+                </select>
+            </div>
+            <button id="capture-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition-colors">Capturar y Subir</button>
+            <button onclick="closeCamera()" class="w-full mt-2 text-gray-400 py-2">Cancelar</button>
+        </div>
+    </div>
+
     <div id="toast"></div>
+    <!-- Cliente de Supabase para Storage -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
     <script>
       function socialAuth(provider) {

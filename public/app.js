@@ -1,4 +1,16 @@
 // --- DETECCIÓN INTELIGENTE DE ENTORNO Y CONEXIÓN ---
+// --- INICIALIZACIÓN DE SUPABASE (Para Storage de Fotos) ---
+const SUPABASE_URL = 'https://rkhzeoklwdhrkzyoqsit.supabase.co'; // ⚠️ ¡ESTA ES TU URL REAL!
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJraHplb2tsd2Rocmt6eW9xc2l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTA5NTk3MjcsImV4cCI6MjAyNjUzNTcyN30.823j8WJzV1y3sQo2a-Xwz1t_3h2a_uPAb-fG2aVIpYI'; // ⚠️ ¡ESTA ES TU LLAVE REAL!
+
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("✅ Cliente de Supabase Storage inicializado.");
+} else {
+    console.warn("⚠️ Supabase no configurado. La subida de fotos no funcionará.");
+}
+
 let API_URL = window.location.origin;
 
 // Detectar si estamos en Capacitor (App Nativa) o en un Navegador Web (PC/Móvil)
@@ -19,8 +31,10 @@ if (isAndroid) {
     }
 }
 
-// ☁️ Configuración forzada para Producción en Railway:
-API_URL = 'https://vibescites-production-3f34.up.railway.app';
+// Si la URL actual ya es un dominio de producción (contiene .app, .com, etc.), úsala.
+if (window.location.hostname.includes('.')) {
+    API_URL = window.location.origin;
+}
 
 console.log(`🌍 Entorno detectado: ${isNativeApp ? (isAndroid ? 'App Android' : 'App iOS') : (isPCWeb ? 'Web PC' : 'Web Móvil')}`);
 console.log(`🔌 Conectando al Backend en: ${API_URL}`);
@@ -1128,3 +1142,130 @@ function initVibeBackground() {
     animate();
 }
 initVibeBackground();
+
+// --- LÓGICA DE CÁMARA PROFESIONAL Y FILTROS ---
+
+const cameraModal = document.getElementById('camera-modal');
+const videoElement = document.getElementById('camera-video');
+const canvasElement = document.getElementById('camera-canvas');
+const filterSelect = document.getElementById('filter-select');
+const captureBtn = document.getElementById('capture-btn');
+const ctx = canvasElement.getContext('2d');
+let stream = null;
+
+async function openCamera() {
+    if (!cameraModal) return;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'user' }, // Prioriza la cámara frontal
+            audio: false 
+        });
+        cameraModal.classList.remove('hidden');
+        videoElement.srcObject = stream;
+        videoElement.onloadedmetadata = () => {
+            // Ajustar el canvas al tamaño real del video para evitar distorsión
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            drawCameraFrame();
+        };
+    } catch (err) {
+        console.error("❌ Error al acceder a la cámara:", err);
+        showToast('No se pudo acceder a la cámara. Revisa los permisos.', 'error');
+    }
+}
+
+function drawCameraFrame() {
+    if (!stream || !ctx) return;
+    // Dibuja el frame actual del video en el canvas
+    ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+    // Pide al navegador que vuelva a dibujar en el siguiente frame disponible
+    requestAnimationFrame(drawCameraFrame);
+}
+
+function applyFilter() {
+    if (!canvasElement || !filterSelect) return;
+    canvasElement.style.filter = filterSelect.value;
+}
+
+function closeCamera() {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop()); // Detiene la cámara
+    }
+    if (cameraModal) cameraModal.classList.add('hidden');
+    stream = null;
+}
+
+async function captureAndUpload() {
+    if (!canvasElement || !token || !supabase) {
+        return showToast('Error: Cliente de Supabase no configurado.', 'error');
+    }
+    
+    captureBtn.disabled = true;
+    captureBtn.innerText = 'Subiendo...';
+    showToast('Procesando foto...', 'info');
+
+    // 1. Captura la imagen del canvas como un archivo (Blob)
+    canvasElement.toBlob(async (blob) => {
+        if (!blob) {
+            captureBtn.disabled = false;
+            captureBtn.innerText = 'Capturar y Subir';
+            return showToast('Error al capturar la imagen.', 'error');
+        }
+
+        // 2. SUBIDA REAL A SUPABASE STORAGE
+        const userId = JSON.parse(localStorage.getItem('vibe_user') || '{}').id;
+        if (!userId) {
+             captureBtn.disabled = false;
+             captureBtn.innerText = 'Capturar y Subir';
+             return showToast('Error: No se encontró ID de usuario.', 'error');
+        }
+        
+        const fileName = `avatar_${userId}_${Date.now()}.jpg`;
+        const { data: uploadData, error: uploadError } = await supabase
+            .storage
+            .from('avatars') // El nombre de tu bucket
+            .upload(fileName, blob, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (uploadError) {
+            console.error('❌ Error subiendo a Supabase:', uploadError);
+            captureBtn.disabled = false;
+            captureBtn.innerText = 'Capturar y Subir';
+            return showToast(`Error de Storage: ${uploadError.message}`, 'error');
+        }
+
+        // 3. OBTENER LA URL PÚBLICA Y PERMANENTE
+        const { data: urlData } = supabase
+            .storage
+            .from('avatars')
+            .getPublicUrl(uploadData.path);
+
+        const publicUrl = urlData.publicUrl;
+
+        // 4. Envía SOLO la URL al backend para actualizar el perfil
+        const res = await fetch(`${API_URL}/users/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ avatarUrl: publicUrl }) // ¡Enviamos la URL, no el Base64!
+        });
+        const data = await res.json();
+        
+        captureBtn.disabled = false;
+        captureBtn.innerText = 'Capturar y Subir';
+        
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            closeCamera();
+            // Actualizar la vista del perfil para mostrar la nueva foto al instante
+            if (!document.getElementById('view-profile').classList.contains('hidden')) loadProfile();
+        }
+    }, 'image/jpeg', 0.9); // Comprime a JPEG con 90% de calidad
+}
+
+if (filterSelect) filterSelect.addEventListener('change', applyFilter);
+if (captureBtn) captureBtn.addEventListener('click', captureAndUpload);
+
+// Para abrir la cámara, podrías llamar a openCamera() desde un botón en tu app.html
+// Ejemplo: <button onclick="openCamera()">Cambiar Foto</button>

@@ -94,7 +94,7 @@ export class VibeController {
   async getUserProfile(req: any, res: any) {
     const { id } = req.params;
     // Extracción REAL de base de datos
-    const result = await db.query(`SELECT username, birth_date, zodiac_sign, bio, occupation, vibe_color, vibe_score, spotify_id FROM users WHERE id = $1`, [id]);
+    const result = await db.query(`SELECT username, birth_date, zodiac_sign, bio, occupation, vibe_color, vibe_score, spotify_id, profile_audio_url FROM users WHERE id = $1`, [id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: "Usuario no encontrado" });
 
     const user = result.rows[0];
@@ -120,7 +120,7 @@ export class VibeController {
     const signatureSongId = songIdResult.rows.length > 0 ? songIdResult.rows[0].item_value : null;
 
     const realProfile = {
-      basic: { username: user.username, zodiac: user.zodiac_sign || 'Aries', bio: user.bio || 'Sin biografía', vibe_color: user.vibe_color },
+      basic: { username: user.username, zodiac: user.zodiac_sign || 'Aries', bio: user.bio || 'Sin biografía', vibe_color: user.vibe_color, avatarUrl: user.profile_audio_url },
       details: { occupation: user.occupation || 'N/A' },
       vibeCheck: { redFlags, greenFlags },
       spotifyConnected: !!user.spotify_id,
@@ -166,11 +166,11 @@ export class VibeController {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ success: false });
     
-    const { bio, occupation, zodiacSign, avatarBase64 } = req.body;
+    const { bio, occupation, zodiacSign, avatarUrl } = req.body;
     try {
       await db.query(`UPDATE users SET bio = $1, occupation = $2, zodiac_sign = $3 WHERE id = $4`, [bio, occupation, zodiacSign, userId]);
-      if (avatarBase64) {
-          await db.query(`UPDATE users SET profile_audio_url = $1 WHERE id = $2`, [avatarBase64, userId]); // Reutilizamos campo como avatar URL para el MVP
+      if (avatarUrl) {
+          await db.query(`UPDATE users SET profile_audio_url = $1 WHERE id = $2`, [avatarUrl, userId]); // Usamos este campo como URL del avatar
       }
       res.json({ success: true, message: 'Perfil actualizado con éxito ✨' });
     } catch (e) {

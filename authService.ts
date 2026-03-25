@@ -294,7 +294,12 @@ export class AuthService {
   public generateToken(user: any): string {
     const issuedAt = Date.now();
     const payload = Buffer.from(JSON.stringify({ id: user.id, iat: issuedAt })).toString('base64url');
-    const secret = process.env.JWT_SECRET || 'vibe_fallback_secret_key_12345';
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret === 'vibe_fallback_secret_key_12345') {
+      console.error('❌ FATAL: JWT_SECRET no está configurado en el entorno o es inseguro.');
+      console.error('   -> Añade una variable de entorno JWT_SECRET con una clave larga y secreta.');
+      throw new Error('El servidor no está configurado correctamente para la autenticación.');
+    }
     const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
     return `${payload}.${signature}`;
   }
@@ -302,7 +307,11 @@ export class AuthService {
   // --- NUEVAS FUNCIONES ---
 
   private handleDbError(error: any) {
-    console.error('❌ Error Crítico DB/Server:', error);
+    console.error('❌ Error Crítico DB/Server:', error.message || error);
+    // Error de Unicidad de PostgreSQL (ej. email o username duplicado)
+    if (error.code === '23505') {
+      return { success: false, message: `Este ${error.constraint.split('_')[1]} ya está en uso.` };
+    }
     return { success: false, message: 'Ocurrió un error en el servidor. Inténtalo de nuevo más tarde.' };
   }
 
