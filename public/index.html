@@ -47,7 +47,7 @@
                 </div>
 
                 <div class="flex gap-2 mb-4">
-                    <button type="button" onclick="socialAuth('google')" class="flex-1 bg-white text-black font-semibold py-2 rounded-lg flex justify-center items-center gap-2 hover:bg-gray-100 transition"><img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5"> Google</button>
+                    <button type="button" onclick="socialLogin('google')" class="flex-1 bg-white text-black font-semibold py-2 rounded-lg flex justify-center items-center gap-2 hover:bg-gray-100 transition"><img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5"> Google</button>
                     <button type="button" onclick="biometricLogin()" class="flex-1 bg-gray-800 text-white font-semibold py-2 rounded-lg flex justify-center items-center gap-2 border border-gray-700 hover:bg-gray-700 transition">🗝️ Passkey</button>
                 </div>
 
@@ -128,13 +128,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
     <script>
-      function socialAuth(provider) {
-        // Esta función redirige al usuario al endpoint de autenticación correcto en el backend.
-        // El backend (usando Passport) se encargará de redirigir al proveedor (Google, etc.).
-        const vibeColor = getComputedStyle(document.getElementById('vibe-aura-indicator')).backgroundColor;
-        window.location.href = `/auth/${provider}?vibe_color=${encodeURIComponent(vibeColor)}`;
-      }
-
       // Registrar el Service Worker para habilitar la instalación de la App
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
