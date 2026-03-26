@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vibe-v3';
+const CACHE_NAME = 'vibe-v4';
 const ASSETS = ['/', '/index.html', '/app.html', '/styles.css', '/app.js'];
 
 self.addEventListener('install', (e) => {
