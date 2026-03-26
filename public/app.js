@@ -3,9 +3,9 @@
 const SUPABASE_URL = 'https://rkhzeoklwdhrkzyoqsit.supabase.co'; // ⚠️ ¡ESTA ES TU URL REAL!
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJraHplb2tsd2Rocmt6eW9xc2l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTA5NTk3MjcsImV4cCI6MjAyNjUzNTcyN30.823j8WJzV1y3sQo2a-Xwz1t_3h2a_uPAb-fG2aVIpYI'; // ⚠️ ¡ESTA ES TU LLAVE REAL!
 
-let supabase = null;
+let supabaseClient = null;
 if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log("✅ Cliente de Supabase Storage inicializado.");
 } else {
     console.warn("⚠️ Supabase no configurado. La subida de fotos no funcionará.");
@@ -1196,7 +1196,7 @@ function closeCamera() {
 }
 
 async function captureAndUpload() {
-    if (!canvasElement || !token || !supabase) {
+    if (!canvasElement || !token || !supabaseClient) {
         return showToast('Error: Cliente de Supabase no configurado.', 'error');
     }
     
@@ -1221,7 +1221,7 @@ async function captureAndUpload() {
         }
         
         const fileName = `avatar_${userId}_${Date.now()}.jpg`;
-        const { data: uploadData, error: uploadError } = await supabase
+        const { data: uploadData, error: uploadError } = await supabaseClient
             .storage
             .from('avatars') // El nombre de tu bucket
             .upload(fileName, blob, {
@@ -1237,7 +1237,7 @@ async function captureAndUpload() {
         }
 
         // 3. OBTENER LA URL PÚBLICA Y PERMANENTE
-        const { data: urlData } = supabase
+        const { data: urlData } = supabaseClient
             .storage
             .from('avatars')
             .getPublicUrl(uploadData.path);
