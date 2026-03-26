@@ -1150,7 +1150,7 @@ const videoElement = document.getElementById('camera-video');
 const canvasElement = document.getElementById('camera-canvas');
 const filterSelect = document.getElementById('filter-select');
 const captureBtn = document.getElementById('capture-btn');
-const ctx = canvasElement.getContext('2d');
+const cameraCtx = canvasElement ? canvasElement.getContext('2d') : null;
 let stream = null;
 
 async function openCamera() {
@@ -1175,9 +1175,9 @@ async function openCamera() {
 }
 
 function drawCameraFrame() {
-    if (!stream || !ctx) return;
+    if (!stream || !cameraCtx) return;
     // Dibuja el frame actual del video en el canvas
-    ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+    cameraCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     // Pide al navegador que vuelva a dibujar en el siguiente frame disponible
     requestAnimationFrame(drawCameraFrame);
 }

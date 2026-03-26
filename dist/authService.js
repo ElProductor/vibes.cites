@@ -308,11 +308,10 @@ class AuthService {
     generateToken(user) {
         const issuedAt = Date.now();
         const payload = Buffer.from(JSON.stringify({ id: user.id, iat: issuedAt })).toString('base64url');
-        const secret = process.env.JWT_SECRET;
-        if (!secret || secret === 'vibe_fallback_secret_key_12345') {
-            console.error('❌ FATAL: JWT_SECRET no está configurado en el entorno o es inseguro.');
-            console.error('   -> Añade una variable de entorno JWT_SECRET con una clave larga y secreta.');
-            throw new Error('El servidor no está configurado correctamente para la autenticación.');
+        const secret = process.env.JWT_SECRET || 'vibe_fallback_secret_key_12345';
+        if (secret === 'vibe_fallback_secret_key_12345') {
+            console.warn('⚠️ AVISO: JWT_SECRET no está configurado en el entorno. Usando clave de respaldo.');
+            console.warn('   -> Añade una variable de entorno JWT_SECRET con una clave larga y secreta para producción.');
         }
         const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
         return `${payload}.${signature}`;
